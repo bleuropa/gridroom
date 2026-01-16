@@ -64,7 +64,7 @@ config :phoenix, :json_library, Jason
 config :gridroom, :grok,
   api_key: System.get_env("XAI_API_KEY"),
   base_url: "https://api.x.ai/v1",
-  model: "grok-3-fast-latest",
+  model: "grok-4-1-fast",
   enabled: false,
   schedule_interval_ms: :timer.hours(4)
 

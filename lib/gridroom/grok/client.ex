@@ -76,7 +76,7 @@ defmodule Gridroom.Grok.Client do
 
   defp build_request_body(prompt, tools) do
     base = %{
-      "model" => config()[:model] || "grok-3-fast-latest",
+      "model" => config()[:model] || "grok-4-1-fast",
       "messages" => [
         %{"role" => "user", "content" => prompt}
       ]
