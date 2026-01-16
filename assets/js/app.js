@@ -71,12 +71,28 @@ Hooks.GridCanvas = {
 
     // Keyboard movement (WASD / Arrow keys)
     this.handleKeyDown = (e) => {
+      // Ignore if typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+
       const key = e.key.toLowerCase()
 
-      // Center on player (Space or C)
-      if (key === ' ' || key === 'c') {
+      // Center on player (Space)
+      if (key === ' ') {
         e.preventDefault()
         this.centerOnPlayer()
+        return
+      }
+
+      // Create node (N)
+      if (key === 'n') {
+        e.preventDefault()
+        this.pushEvent('open_create_node', {})
+        return
+      }
+
+      // Close sidebar (Escape)
+      if (key === 'escape') {
+        this.pushEvent('close_create_node', {})
         return
       }
 

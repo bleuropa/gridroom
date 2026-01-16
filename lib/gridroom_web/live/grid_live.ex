@@ -572,6 +572,9 @@ defmodule GridroomWeb.GridLive do
           <span class="text-[#5a4f42]">WASD</span> move ·
           <span class="text-[#5a4f42]">drag</span> pan ·
           <span class="text-[#5a4f42]">space</span> center
+          <%= if @logged_in do %>
+            · <span class="text-[#5a4f42]">N</span> new node
+          <% end %>
           <%= if !@camera_follow do %>
             · <span class="text-[#c9a962]">camera detached</span>
           <% end %>
