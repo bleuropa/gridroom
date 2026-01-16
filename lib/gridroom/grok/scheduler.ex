@@ -67,6 +67,7 @@ defmodule Gridroom.Grok.Scheduler do
 
   @impl true
   def handle_cast(:trigger_now, state) do
+    Logger.info("Grok scheduler: trigger_now called, enabled=#{Client.enabled?()}")
     new_state = do_fetch_and_generate(state)
     {:noreply, new_state}
   end

@@ -16,6 +16,7 @@ defmodule Gridroom.Grid.Node do
     field :glyph_shape, :string, default: "hexagon"
     field :glyph_color, :string, default: "#8B7355"
     field :last_activity_at, :utc_datetime
+    field :sources, {:array, :map}, default: []
 
     belongs_to :created_by, Gridroom.Accounts.User
     has_many :messages, Gridroom.Grid.Message
@@ -25,7 +26,7 @@ defmodule Gridroom.Grid.Node do
 
   def changeset(node, attrs) do
     node
-    |> cast(attrs, [:title, :description, :position_x, :position_y, :node_type, :glyph_shape, :glyph_color, :created_by_id, :last_activity_at])
+    |> cast(attrs, [:title, :description, :position_x, :position_y, :node_type, :glyph_shape, :glyph_color, :created_by_id, :last_activity_at, :sources])
     |> validate_required([:title, :position_x, :position_y])
     |> validate_inclusion(:node_type, @node_types)
   end

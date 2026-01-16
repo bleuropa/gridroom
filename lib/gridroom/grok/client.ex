@@ -7,7 +7,7 @@ defmodule Gridroom.Grok.Client do
 
   require Logger
 
-  @default_timeout 30_000
+  @default_timeout 120_000
 
   @doc """
   Returns the Grok API configuration.
@@ -35,16 +35,28 @@ defmodule Gridroom.Grok.Client do
   - `{:error, reason}` - Error with reason
   """
   def chat(prompt, opts \\ []) do
+    Logger.info("Grok.Client.chat called, enabled=#{enabled?()}, has_key=#{config()[:api_key] != nil}")
+
     unless enabled?() do
+      Logger.warning("Grok API disabled - set XAI_API_KEY and GROK_ENABLED=true")
       {:error, :grok_disabled}
     else
       tools = Keyword.get(opts, :tools, [])
       timeout = Keyword.get(opts, :timeout, @default_timeout)
 
-      body = build_request_body(prompt, tools)
+      # Use /responses endpoint for search tools, /chat/completions otherwise
+      {endpoint, body} =
+        if has_search_tools?(tools) do
+          {"/responses", build_responses_body(prompt, tools)}
+        else
+          {"/chat/completions", build_request_body(prompt, tools)}
+        end
 
-      case make_request(body, timeout) do
+      Logger.info("Grok request to #{endpoint}: #{inspect(body, limit: 500)}")
+
+      case make_request(endpoint, body, timeout) do
         {:ok, %{status: 200, body: body}} ->
+          Logger.info("Grok API success, response length: #{byte_size(inspect(body))}")
           parse_response(body)
 
         {:ok, %{status: status, body: body}} ->
@@ -56,6 +68,10 @@ defmodule Gridroom.Grok.Client do
           {:error, reason}
       end
     end
+  end
+
+  defp has_search_tools?(tools) do
+    Enum.any?(tools, &(&1 in ["web_search", "x_search"]))
   end
 
   @doc """
@@ -89,7 +105,29 @@ defmodule Gridroom.Grok.Client do
     end
   end
 
+  # Build request body for the /responses endpoint (search tools)
+  defp build_responses_body(prompt, tools) do
+    base = %{
+      "model" => config()[:model] || "grok-4-1-fast",
+      "input" => [
+        %{"role" => "user", "content" => prompt}
+      ]
+    }
+
+    if Enum.empty?(tools) do
+      base
+    else
+      Map.put(base, "tools", build_search_tools(tools))
+    end
+  end
+
   defp build_tools(tool_names) do
+    Enum.map(tool_names, fn
+      other -> %{"type" => other}
+    end)
+  end
+
+  defp build_search_tools(tool_names) do
     Enum.map(tool_names, fn
       "web_search" ->
         %{"type" => "web_search"}
@@ -102,8 +140,8 @@ defmodule Gridroom.Grok.Client do
     end)
   end
 
-  defp make_request(body, timeout) do
-    url = "#{config()[:base_url]}/chat/completions"
+  defp make_request(endpoint, body, timeout) do
+    url = "#{config()[:base_url]}#{endpoint}"
 
     headers = [
       {"authorization", "Bearer #{config()[:api_key]}"},
@@ -118,15 +156,20 @@ defmodule Gridroom.Grok.Client do
   end
 
   defp parse_response(body) when is_binary(body) do
+    Logger.info("Parsing binary response, length: #{byte_size(body)}")
     case Jason.decode(body) do
       {:ok, decoded} -> parse_response(decoded)
-      {:error, _} -> {:error, :invalid_json}
+      {:error, err} ->
+        Logger.error("Failed to decode JSON: #{inspect(err)}")
+        {:error, :invalid_json}
     end
   end
 
+  # Parse /chat/completions response
   defp parse_response(%{"choices" => [%{"message" => message} | _]} = response) do
     content = message["content"] || ""
     citations = response["citations"] || []
+    Logger.info("Parsed chat/completions response, content length: #{String.length(content)}")
 
     {:ok,
      %{
@@ -136,8 +179,46 @@ defmodule Gridroom.Grok.Client do
      }}
   end
 
+  # Parse /responses endpoint response (search tools)
+  defp parse_response(%{"output" => output} = response) when is_list(output) do
+    # Find the assistant message in the output (last message with type: "message")
+    content =
+      output
+      |> Enum.filter(fn item -> item["type"] == "message" end)
+      |> List.last()
+      |> case do
+        %{"content" => content_list} when is_list(content_list) ->
+          # Find the output_text item
+          content_list
+          |> Enum.find_value("", fn
+            %{"type" => "output_text", "text" => text} -> text
+            %{"type" => "text", "text" => text} -> text
+            _ -> nil
+          end)
+
+        _ ->
+          ""
+      end
+
+    citations = response["citations"] || []
+    Logger.info("Parsed /responses response, content length: #{String.length(content)}")
+
+    {:ok,
+     %{
+       content: content,
+       citations: citations,
+       usage: response["usage"]
+     }}
+  end
+
+  defp parse_response(response) when is_map(response) do
+    Logger.warning("Unexpected Grok response format, keys: #{inspect(Map.keys(response))}")
+    Logger.info("Full response: #{inspect(response, limit: 3000)}")
+    {:error, :unexpected_response_format}
+  end
+
   defp parse_response(response) do
-    Logger.warning("Unexpected Grok response format: #{inspect(response)}")
+    Logger.warning("Unexpected Grok response type: #{inspect(response, limit: 500)}")
     {:error, :unexpected_response_format}
   end
 end

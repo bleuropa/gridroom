@@ -332,6 +332,10 @@ defmodule GridroomWeb.NodeLive do
             <%= if @node.description do %>
               <p class="text-sm text-[#5a4f42] mt-1 font-light italic"><%= @node.description %></p>
             <% end %>
+            <!-- Sources (for trend-generated nodes) -->
+            <%= if @node.sources && length(@node.sources) > 0 do %>
+              <.sources_display sources={@node.sources} />
+            <% end %>
           </div>
           <button
             id="share-button"
@@ -954,4 +958,38 @@ defmodule GridroomWeb.NodeLive do
   defp resonance_tooltip_color(_, true, false), do: "text-[#c9a962]"
   defp resonance_tooltip_color(_, _, true), do: "text-[#c9a962]"
   defp resonance_tooltip_color(_, _, _), do: "text-[#8a7d6d]"
+
+  # Sources display component for trend-generated nodes
+  attr :sources, :list, required: true
+  defp sources_display(assigns) do
+    ~H"""
+    <div class="flex items-center gap-3 mt-2">
+      <span class="text-[#3a3330] text-[9px] uppercase tracking-[0.15em]">Sources</span>
+      <div class="flex items-center gap-2">
+        <%= for {source, idx} <- Enum.with_index(@sources) do %>
+          <a
+            href={source["url"]}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group flex items-center gap-1.5 px-2 py-1 bg-[#141210] border border-[#1a1714] hover:border-[#c9a962]/30 transition-all duration-300"
+          >
+            <!-- X icon for X sources -->
+            <%= if source["type"] == "x" do %>
+              <svg class="w-3 h-3 text-[#4a4038] group-hover:text-[#c9a962] transition-colors" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+            <% else %>
+              <svg class="w-3 h-3 text-[#4a4038] group-hover:text-[#c9a962] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+              </svg>
+            <% end %>
+            <span class="text-[9px] uppercase tracking-wider text-[#5a4f42] group-hover:text-[#c9a962] transition-colors">
+              <%= idx + 1 %>
+            </span>
+          </a>
+        <% end %>
+      </div>
+    </div>
+    """
+  end
 end

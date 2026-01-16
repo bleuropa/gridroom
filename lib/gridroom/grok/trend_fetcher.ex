@@ -10,12 +10,13 @@ defmodule Gridroom.Grok.TrendFetcher do
   @doc """
   Fetch and parse trending topics.
 
-  Returns a list of trend maps with :title and :description keys.
+  Returns a list of trend maps with :title, :description, and :sources keys.
   """
   def fetch_trends do
     case Client.fetch_trends() do
       {:ok, %{content: content}} ->
         trends = parse_trends(content)
+        Logger.info("Parsed #{length(trends)} trends from Grok response")
         {:ok, trends}
 
       {:error, reason} ->
@@ -27,56 +28,52 @@ defmodule Gridroom.Grok.TrendFetcher do
   Parse the Grok response content into structured trends.
 
   Expects content in a format like:
-  1. **Topic Title** - Description of why it's interesting
-  2. **Another Topic** - Another description
+  1. **Topic Title**: Description [[1]](url)[[2]](url)
+  2. **Another Topic**: Another description [[3]](url)
   """
   def parse_trends(content) when is_binary(content) do
+    # Split by numbered items (1. 2. 3. etc) to handle multi-line entries
     content
-    |> String.split("\n")
-    |> Enum.map(&parse_trend_line/1)
+    |> String.split(~r/\n(?=\d+\.\s)/)
+    |> Enum.map(&parse_trend_block/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.take(7)
   end
 
   def parse_trends(_), do: []
 
-  defp parse_trend_line(line) do
-    line = String.trim(line)
+  defp parse_trend_block(block) do
+    block = String.trim(block)
+
+    # Extract all X URLs from the block
+    sources = extract_sources(block)
+
+    # Remove citation markers for cleaner parsing
+    clean_block = String.replace(block, ~r/\[\[\d+\]\]\([^)]+\)/, "")
 
     cond do
-      # Pattern: "1. **Title** - Description" or "- **Title** - Description"
-      Regex.match?(~r/^[\d\-\*\.]+\s*\*\*(.+?)\*\*\s*[-–:]\s*(.+)$/u, line) ->
-        case Regex.run(~r/^[\d\-\*\.]+\s*\*\*(.+?)\*\*\s*[-–:]\s*(.+)$/u, line) do
+      # Pattern: "1. **Title**: Description" or "1. **Title** - Description"
+      Regex.match?(~r/^[\d]+\.\s*\*\*(.+?)\*\*\s*[-–:]?\s*(.+)$/su, clean_block) ->
+        case Regex.run(~r/^[\d]+\.\s*\*\*(.+?)\*\*\s*[-–:]?\s*(.+)$/su, clean_block) do
           [_, title, description] ->
             %{
               title: clean_title(title),
-              description: clean_description(description)
+              description: clean_description(description),
+              sources: sources
             }
 
           _ ->
             nil
         end
 
-      # Pattern: "1. Title - Description" or "- Title: Description"
-      Regex.match?(~r/^[\d\-\*\.]+\s*(.+?)\s*[-–:]\s*(.+)$/u, line) ->
-        case Regex.run(~r/^[\d\-\*\.]+\s*(.+?)\s*[-–:]\s*(.+)$/u, line) do
+      # Pattern: "1. Title: Description" or "1. Title - Description"
+      Regex.match?(~r/^[\d]+\.\s*(.+?)\s*[-–:]\s*(.+)$/su, clean_block) ->
+        case Regex.run(~r/^[\d]+\.\s*(.+?)\s*[-–:]\s*(.+)$/su, clean_block) do
           [_, title, description] when byte_size(title) > 3 ->
             %{
               title: clean_title(title),
-              description: clean_description(description)
-            }
-
-          _ ->
-            nil
-        end
-
-      # Pattern: Just a title with no description (numbered list)
-      Regex.match?(~r/^[\d]+\.\s*\*?\*?(.+?)\*?\*?\s*$/u, line) ->
-        case Regex.run(~r/^[\d]+\.\s*\*?\*?(.+?)\*?\*?\s*$/u, line) do
-          [_, title] when byte_size(title) > 3 ->
-            %{
-              title: clean_title(title),
-              description: generate_placeholder_description(title)
+              description: clean_description(description),
+              sources: sources
             }
 
           _ ->
@@ -85,6 +82,27 @@ defmodule Gridroom.Grok.TrendFetcher do
 
       true ->
         nil
+    end
+  end
+
+  defp extract_sources(text) do
+    # Match [[N]](url) patterns and extract URLs
+    ~r/\[\[\d+\]\]\((https?:\/\/[^)]+)\)/
+    |> Regex.scan(text)
+    |> Enum.map(fn [_, url] ->
+      %{
+        "url" => url,
+        "type" => source_type(url)
+      }
+    end)
+    |> Enum.uniq_by(& &1["url"])
+    |> Enum.take(3)  # Limit to 3 sources per trend
+  end
+
+  defp source_type(url) do
+    cond do
+      String.contains?(url, "x.com") or String.contains?(url, "twitter.com") -> "x"
+      true -> "web"
     end
   end
 

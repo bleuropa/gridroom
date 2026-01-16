@@ -73,7 +73,8 @@ defmodule Gridroom.Grok.NodeGenerator do
       position_y: position.y,
       node_type: infer_node_type(trend),
       glyph_shape: "hexagon",
-      glyph_color: trend_color()
+      glyph_color: trend_color(),
+      sources: trend[:sources] || []
     }
   end
 
