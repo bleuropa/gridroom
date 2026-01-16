@@ -46,4 +46,38 @@ defmodule GridroomWeb.Presence do
   def subscribe do
     Phoenix.PubSub.subscribe(Gridroom.PubSub, @topic)
   end
+
+  # Node-specific presence tracking
+  def track_user_in_node(pid, %User{} = user, node_id) do
+    track(pid, node_topic(node_id), user.id, %{
+      user_id: user.id,
+      username: user.username,
+      glyph_shape: user.glyph_shape,
+      glyph_color: user.glyph_color,
+      typing: false,
+      last_active: System.system_time(:second)
+    })
+  end
+
+  def set_typing(pid, %User{} = user, node_id, typing) do
+    update(pid, node_topic(node_id), user.id, fn meta ->
+      %{meta | typing: typing, last_active: System.system_time(:second)}
+    end)
+  end
+
+  def update_activity(pid, %User{} = user, node_id) do
+    update(pid, node_topic(node_id), user.id, fn meta ->
+      %{meta | last_active: System.system_time(:second)}
+    end)
+  end
+
+  def list_users_in_node(node_id) do
+    list(node_topic(node_id))
+  end
+
+  def subscribe_to_node(node_id) do
+    Phoenix.PubSub.subscribe(Gridroom.PubSub, node_topic(node_id))
+  end
+
+  defp node_topic(node_id), do: "node:#{node_id}:presence"
 end

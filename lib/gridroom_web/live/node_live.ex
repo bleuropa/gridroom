@@ -2,6 +2,7 @@ defmodule GridroomWeb.NodeLive do
   use GridroomWeb, :live_view
 
   alias Gridroom.{Grid, Accounts}
+  alias GridroomWeb.Presence
 
   @impl true
   def mount(%{"id" => id}, session, socket) do
@@ -21,24 +22,35 @@ defmodule GridroomWeb.NodeLive do
           Accounts.get_user(user_id)
       end
 
-    # Subscribe to messages for this node
+    # Subscribe to messages and presence for this node
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "node:#{id}")
+      Presence.subscribe_to_node(id)
+      Presence.track_user_in_node(self(), user, id)
     end
 
-    # Load messages
+    # Load messages and current presence
     messages = Grid.list_messages_for_node(id, limit: 100)
+    present_users = if connected?(socket), do: presence_to_map(Presence.list_users_in_node(id)), else: %{}
 
     {:ok,
      socket
      |> assign(:node, node)
      |> assign(:user, user)
      |> assign(:messages, messages)
+     |> assign(:present_users, present_users)
      |> assign(:message_form, to_form(%{"content" => ""}))
      |> assign(:page_title, node.title)
      |> assign(:og_title, "#{node.title} - Gridroom")
      |> assign(:og_description, node.description || "Join this conversation at Gridroom")
-     |> assign(:show_copied_toast, false)}
+     |> assign(:show_copied_toast, false)
+     |> assign(:typing, false)}
+  end
+
+  defp presence_to_map(presence_list) do
+    Enum.reduce(presence_list, %{}, fn {id, %{metas: [meta | _]}}, acc ->
+      Map.put(acc, id, meta)
+    end)
   end
 
   @impl true
@@ -46,13 +58,21 @@ defmodule GridroomWeb.NodeLive do
     node = socket.assigns.node
     user = socket.assigns.user
 
+    # Stop typing indicator when sending
+    if socket.assigns.typing do
+      Presence.set_typing(self(), user, node.id, false)
+    end
+
     case Grid.create_message(%{
       content: String.trim(content),
       node_id: node.id,
       user_id: user.id
     }) do
       {:ok, _message} ->
-        {:noreply, assign(socket, :message_form, to_form(%{"content" => ""}))}
+        {:noreply,
+         socket
+         |> assign(:message_form, to_form(%{"content" => ""}))
+         |> assign(:typing, false)}
 
       {:error, _changeset} ->
         {:noreply, socket}
@@ -60,6 +80,22 @@ defmodule GridroomWeb.NodeLive do
   end
 
   def handle_event("send_message", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("typing_start", _params, socket) do
+    if not socket.assigns.typing do
+      Presence.set_typing(self(), socket.assigns.user, socket.assigns.node.id, true)
+    end
+    {:noreply, assign(socket, :typing, true)}
+  end
+
+  @impl true
+  def handle_event("typing_stop", _params, socket) do
+    if socket.assigns.typing do
+      Presence.set_typing(self(), socket.assigns.user, socket.assigns.node.id, false)
+    end
+    {:noreply, assign(socket, :typing, false)}
+  end
 
   @impl true
   def handle_event("copy_share_url", _params, socket) do
@@ -77,6 +113,12 @@ defmodule GridroomWeb.NodeLive do
   def handle_info({:new_message, message}, socket) do
     messages = socket.assigns.messages ++ [message]
     {:noreply, assign(socket, :messages, messages)}
+  end
+
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff", payload: diff}, socket) do
+    present_users = Presence.handle_diff(socket.assigns.present_users, diff)
+    {:noreply, assign(socket, :present_users, present_users)}
   end
 
   @impl true
@@ -138,27 +180,108 @@ defmodule GridroomWeb.NodeLive do
         <% end %>
       </div>
 
-      <!-- Input -->
-      <div class="border-t border-grid-line px-6 py-4">
-        <.form for={@message_form} phx-submit="send_message" class="flex gap-3">
-          <div class="flex-1 relative">
-            <input
-              type="text"
-              name="content"
-              value={@message_form[:content].value}
-              placeholder="Say something..."
-              class="w-full bg-grid-surface border border-grid-line rounded-lg px-4 py-3 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-warm transition-colors"
-              autocomplete="off"
-            />
+      <!-- Bottom section: presence row + input -->
+      <div class="border-t border-grid-line">
+        <!-- Presence row - diamond avatars -->
+        <div class="px-6 py-3 border-b border-grid-line/50 bg-[#0d0b0a]/50">
+          <div class="flex items-center gap-1">
+            <span class="text-[#5a4f42] text-xs uppercase tracking-wider mr-3">Present</span>
+            <div class="flex items-center gap-2">
+              <%= for {_id, presence} <- @present_users do %>
+                <.presence_diamond
+                  presence={presence}
+                  is_self={presence.user_id == @user.id}
+                />
+              <% end %>
+            </div>
+            <!-- Typing indicator -->
+            <% typing_users = Enum.filter(@present_users, fn {id, p} -> p.typing && id != @user.id end) %>
+            <%= if length(typing_users) > 0 do %>
+              <span class="ml-auto text-[#5a4f42] text-xs italic animate-pulse">
+                <%= typing_text(typing_users) %>
+              </span>
+            <% end %>
           </div>
-          <button
-            type="submit"
-            class="px-6 py-3 bg-accent-warm text-grid-base rounded-lg font-medium hover:bg-accent-warm/90 transition-colors"
-          >
-            Speak
-          </button>
-        </.form>
+        </div>
+
+        <!-- Input -->
+        <div class="px-6 py-4">
+          <.form for={@message_form} phx-submit="send_message" class="flex gap-3">
+            <div class="flex-1 relative">
+              <input
+                type="text"
+                name="content"
+                id="message-input"
+                phx-hook="TypingIndicator"
+                value={@message_form[:content].value}
+                placeholder="Say something..."
+                class="w-full bg-grid-surface border border-grid-line rounded-lg px-4 py-3 text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-warm transition-colors"
+                autocomplete="off"
+              />
+            </div>
+            <button
+              type="submit"
+              class="px-6 py-3 bg-accent-warm text-grid-base rounded-lg font-medium hover:bg-accent-warm/90 transition-colors"
+            >
+              Speak
+            </button>
+          </.form>
+        </div>
       </div>
+    </div>
+    """
+  end
+
+  defp typing_text(typing_users) do
+    count = length(typing_users)
+    cond do
+      count == 1 ->
+        [{_id, user}] = typing_users
+        name = user.username || "someone"
+        "#{name} is typing..."
+      count == 2 ->
+        "2 people are typing..."
+      count > 2 ->
+        "several people are typing..."
+      true ->
+        ""
+    end
+  end
+
+  attr :presence, :map, required: true
+  attr :is_self, :boolean, default: false
+  defp presence_diamond(assigns) do
+    ~H"""
+    <div class={"relative group #{if @is_self, do: "ring-1 ring-[#c9a962]/50 rounded"}"}>
+      <svg
+        width="24"
+        height="24"
+        viewBox="-12 -12 24 24"
+        class={"transition-all duration-200 #{if @presence.typing, do: "animate-pulse scale-110"}"}
+      >
+        <!-- Diamond shape -->
+        <polygon
+          points="0,-10 10,0 0,10 -10,0"
+          fill={@presence.glyph_color}
+          opacity={if @is_self, do: "1", else: "0.8"}
+          class="drop-shadow-sm"
+        />
+        <!-- Inner glow for self -->
+        <%= if @is_self do %>
+          <polygon
+            points="0,-6 6,0 0,6 -6,0"
+            fill={@presence.glyph_color}
+            opacity="0.4"
+            class="animate-breathe"
+          />
+        <% end %>
+      </svg>
+      <!-- Tooltip with username -->
+      <%= if @presence.username do %>
+        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[#1a1714] border border-[#2a2522] text-xs text-[#c4b8a8] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <%= @presence.username %><%= if @is_self, do: " (you)" %>
+        </div>
+      <% end %>
     </div>
     """
   end

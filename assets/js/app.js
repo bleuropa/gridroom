@@ -284,6 +284,41 @@ Hooks.CopyToClipboard = {
   }
 }
 
+// Typing indicator hook
+Hooks.TypingIndicator = {
+  mounted() {
+    this.typingTimeout = null
+
+    this.el.addEventListener('input', () => {
+      // Send typing start
+      this.pushEvent('typing_start', {})
+
+      // Clear existing timeout
+      if (this.typingTimeout) {
+        clearTimeout(this.typingTimeout)
+      }
+
+      // Set timeout to stop typing after 2 seconds of no input
+      this.typingTimeout = setTimeout(() => {
+        this.pushEvent('typing_stop', {})
+      }, 2000)
+    })
+
+    this.el.addEventListener('blur', () => {
+      if (this.typingTimeout) {
+        clearTimeout(this.typingTimeout)
+      }
+      this.pushEvent('typing_stop', {})
+    })
+  },
+
+  destroyed() {
+    if (this.typingTimeout) {
+      clearTimeout(this.typingTimeout)
+    }
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
