@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-016-grid-canvas-navigation]]
-**Branch**: feat/T-2025-016-grid-canvas-navigation
-**Goal**: Improve canvas traversal - zoom out to see all nodes, select before entering
+**Active Task**: None
+**Branch**: main
+**Goal**: —
 
 ---
 
@@ -22,9 +22,7 @@
 ## Backlog (Prioritized)
 
 ### High Priority (P1)
-- [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation improvements
 - [[E-2025-002-social-friends-system]] - Epic: Social & Friends System
-- [[T-2025-015-energy-reputation-system]] - Energy/Reputation system (Lumon-style moderation)
 - [[T-2025-013-share-nodes-via-url]] - Share nodes via URL
 - [[T-2025-006-node-creation-system]] - Node creation system
 
@@ -45,9 +43,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation (click to select, zoom limits)
 - [[T-2025-015-energy-reputation-system]] - Resonance system with affirm/dismiss feedback
 - [[T-2025-014-user-profile-sidebar-friending]] - User profile sidebar, friending, recognition highlighting
-- [[T-2025-005-username-password-auth]] - Username/password auth (no email)
 
 ---
 

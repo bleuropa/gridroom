@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-016
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
@@ -11,12 +11,12 @@ updated: 2026-01-16
 
 ## Task Details
 **Task ID**: T-2025-016-grid-canvas-navigation
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1
 **Branch**: feat/T-2025-016-grid-canvas-navigation
 **Created**: 2026-01-16
 **Started**: 2026-01-16
-**Completed**:
+**Completed**: 2026-01-16
 
 ## Description
 Improve the canvas/grid experience to feel more like genuine spatial traversal. Currently clicking a node immediately opens the chat view, which breaks the sense of exploration. The goal is to create a more immersive navigation experience where:
