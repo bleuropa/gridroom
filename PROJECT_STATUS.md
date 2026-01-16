@@ -15,9 +15,30 @@
 
 ## Next Up (Top 3 Priorities)
 
-1. AI content seeding with xAI/Grok
-2. Deploy to production
-3. HLS player improvements (T-2025-037)
+1. [[T-2025-013-share-nodes-via-url]] - Share nodes via URL (viral growth)
+2. [[T-2025-010-enhanced-node-chat-viz]] - Enhanced chat room viz (diamond avatars)
+3. [[T-2025-006-node-creation-system]] - User node creation
+
+## Backlog (Prioritized)
+
+### High Priority (P1)
+- [[E-2025-002-social-friends-system]] - Epic: Social & Friends System
+- [[T-2025-013-share-nodes-via-url]] - Share nodes via URL
+- [[T-2025-010-enhanced-node-chat-viz]] - Enhanced chat room visualization
+- [[T-2025-006-node-creation-system]] - Node creation system
+
+### Medium Priority (P2)
+- [[T-2025-007-grid-territories-classification]] - Grid territories & node classification
+- [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+- [[T-2025-011-portal-system]] - Portal system with energy cost
+- [[T-2025-012-node-creation-cost-proximity]] - Node creation cost by proximity
+
+### Low Priority (P3)
+- [[T-2025-008-ai-avatar-generation]] - AI avatar generation for auth users
+
+### Future (from VISION.md)
+- AI content seeding with xAI/Grok
+- Deploy to production
 
 ---
 
