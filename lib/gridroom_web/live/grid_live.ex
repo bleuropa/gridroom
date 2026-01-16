@@ -300,26 +300,22 @@ defmodule GridroomWeb.GridLive do
               <.node_shape node={node} activity_level={activity.level} />
             </a>
 
-            <!-- Activity indicator dot -->
-            <%= if activity.count > 0 do %>
+            <!-- Activity indicator - warm ember glow instead of dots -->
+            <%= if activity.level in [:active, :buzzing] do %>
+              <!-- Inner warmth glow -->
               <circle
-                cx="18"
-                cy="-18"
-                r="4"
-                fill={activity_dot_color(activity.level)}
-                class={if activity.level == :buzzing, do: "animate-pulse", else: ""}
+                r={activity_inner_glow_radius(activity.level)}
+                fill={node_type_color(node.node_type)}
+                opacity={activity_glow_opacity(activity.level)}
+                filter="url(#node-glow)"
+                class="activity-core"
               />
-              <%= if activity.count > 1 do %>
-                <text
-                  x="18"
-                  y="-15"
-                  text-anchor="middle"
-                  fill="#0d0b0a"
-                  style="font-size: 6px; font-weight: bold;"
-                >
-                  <%= min(activity.count, 99) %>
-                </text>
-              <% end %>
+            <% end %>
+            <%= if activity.level == :buzzing do %>
+              <!-- Particle-like floating embers -->
+              <circle cx="15" cy="-12" r="1.5" fill="#dba76f" opacity="0.6" class="animate-ember" style="animation-delay: 0s;" />
+              <circle cx="-12" cy="10" r="1" fill="#dba76f" opacity="0.5" class="animate-ember" style="animation-delay: -0.5s;" />
+              <circle cx="8" cy="18" r="1.2" fill="#dba76f" opacity="0.4" class="animate-ember" style="animation-delay: -1s;" />
             <% end %>
 
             <!-- Label with backdrop -->
@@ -511,10 +507,14 @@ defmodule GridroomWeb.GridLive do
   defp activity_opacity(:active), do: "0.35"
   defp activity_opacity(:buzzing), do: "0.5"
 
-  defp activity_dot_color(:quiet), do: "#6a8a5a"
-  defp activity_dot_color(:active), do: "#c9a962"
-  defp activity_dot_color(:buzzing), do: "#e8c547"
-  defp activity_dot_color(_), do: "#555"
+  # Glow-based activity indicators
+  defp activity_inner_glow_radius(:active), do: "25"
+  defp activity_inner_glow_radius(:buzzing), do: "30"
+  defp activity_inner_glow_radius(_), do: "0"
+
+  defp activity_glow_opacity(:active), do: "0.15"
+  defp activity_glow_opacity(:buzzing), do: "0.25"
+  defp activity_glow_opacity(_), do: "0"
 
   defp node_opacity(:dormant), do: "0.5"
   defp node_opacity(:quiet), do: "0.7"
