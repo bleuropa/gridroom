@@ -6,8 +6,19 @@ defmodule GridroomWeb.NodeLive do
 
   @impl true
   def mount(%{"id" => id}, session, socket) do
-    node = Grid.get_node!(id)
+    case Grid.get_node(id) do
+      nil ->
+        {:ok,
+         socket
+         |> put_flash(:error, "This space no longer exists.")
+         |> push_navigate(to: ~p"/")}
 
+      node ->
+        mount_with_node(node, id, session, socket)
+    end
+  end
+
+  defp mount_with_node(node, id, session, socket) do
     # Check for logged-in user first, then fall back to anonymous session
     user =
       case session["user_id"] do
