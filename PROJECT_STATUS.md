@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-003-gridroom-mvp]] - Building core experience
-**Branch**: feat/T-2025-003-gridroom-mvp
-**Goal**: Infinite grid, user glyphs, topic nodes, conversations
+**Active Task**: [[T-2025-004-grid-ux-polish]] - Camera, fog of war, activity viz
+**Branch**: feat/T-2025-004-grid-ux-polish
+**Goal**: Camera following, fog of war, activity visualization improvements
 
 **Recent Progress**:
 - WASD/Arrow key player movement
