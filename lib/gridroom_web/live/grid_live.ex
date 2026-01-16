@@ -48,6 +48,7 @@ defmodule GridroomWeb.GridLive do
      |> assign(:nodes, nodes)
      |> assign(:player, player_pos)
      |> assign(:viewport, %{x: player_pos.x, y: player_pos.y, zoom: 1.0})
+     |> assign(:camera_follow, true)
      |> assign(:users, %{})
      |> assign(:entering_node, nil)
      |> assign(:can_enter_node, can_enter)
@@ -60,7 +61,11 @@ defmodule GridroomWeb.GridLive do
   def handle_event("pan", %{"dx" => dx, "dy" => dy}, socket) do
     viewport = socket.assigns.viewport
     new_viewport = %{viewport | x: viewport.x + dx, y: viewport.y + dy}
-    {:noreply, assign(socket, :viewport, new_viewport)}
+    # Panning disables camera follow until re-centered
+    {:noreply,
+     socket
+     |> assign(:viewport, new_viewport)
+     |> assign(:camera_follow, false)}
   end
 
   @impl true
@@ -74,7 +79,8 @@ defmodule GridroomWeb.GridLive do
   @impl true
   def handle_event("move", %{"dx" => dx, "dy" => dy}, socket) do
     player = socket.assigns.player
-    speed = 8 / socket.assigns.viewport.zoom
+    viewport = socket.assigns.viewport
+    speed = 8 / viewport.zoom
     new_player = %{x: player.x + dx * speed, y: player.y + dy * speed}
 
     # Update presence with new position
@@ -86,6 +92,13 @@ defmodule GridroomWeb.GridLive do
       check_node_proximity(socket, new_player)
     else
       assign(socket, :can_enter_node, true)
+    end
+
+    # Camera follow - viewport tracks player position
+    socket = if socket.assigns.camera_follow do
+      assign(socket, :viewport, %{viewport | x: new_player.x, y: new_player.y})
+    else
+      socket
     end
 
     {:noreply, assign(socket, :player, new_player)}
@@ -110,6 +123,11 @@ defmodule GridroomWeb.GridLive do
   @impl true
   def handle_event("navigate_to_node", %{"id" => node_id}, socket) do
     {:noreply, push_navigate(socket, to: "/node/#{node_id}")}
+  end
+
+  @impl true
+  def handle_event("enable_camera_follow", _params, socket) do
+    {:noreply, assign(socket, :camera_follow, true)}
   end
 
   @impl true
@@ -412,6 +430,9 @@ defmodule GridroomWeb.GridLive do
           <span class="text-[#5a4f42]">WASD</span> move ·
           <span class="text-[#5a4f42]">drag</span> pan ·
           <span class="text-[#5a4f42]">space</span> center
+          <%= if !@camera_follow do %>
+            · <span class="text-[#c9a962]">camera detached</span>
+          <% end %>
         </p>
       </div>
     </div>

@@ -199,11 +199,13 @@ Hooks.GridCanvas = {
     const dx = playerX - viewportX
     const dy = playerY - viewportY
 
-    // Animate smoothly by sending incremental pan events
-    this.animatePan(dx, dy)
+    // Animate smoothly then re-enable camera follow
+    this.animatePan(dx, dy, () => {
+      this.pushEvent('enable_camera_follow', {})
+    })
   },
 
-  animatePan(targetDx, targetDy) {
+  animatePan(targetDx, targetDy, onComplete) {
     const steps = 20
     const stepDx = targetDx / steps
     const stepDy = targetDy / steps
@@ -220,6 +222,8 @@ Hooks.GridCanvas = {
         this.pushEvent('pan', { dx: currentDx, dy: currentDy })
         step++
         requestAnimationFrame(animate)
+      } else if (onComplete) {
+        onComplete()
       }
     }
 
