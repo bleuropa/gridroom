@@ -52,17 +52,33 @@ defmodule Gridroom.Grok.NodeGenerator do
         end
 
       if dry_run do
-        {:ok, Enum.map(refined_trends, &build_node_attrs(&1, existing_nodes))}
-      else
-        created_nodes =
-          refined_trends
-          |> Enum.map(fn trend ->
-            attrs = build_node_attrs(trend, existing_nodes)
-            create_trend_node(attrs)
+        # For dry run, pre-calculate all positions accounting for each other
+        {attrs_list, _} =
+          Enum.map_reduce(refined_trends, existing_nodes, fn trend, nodes_so_far ->
+            attrs = build_node_attrs(trend, nodes_so_far)
+            # Create a pseudo-node for position tracking
+            pseudo_node = %{position_x: attrs.position_x, position_y: attrs.position_y}
+            {attrs, [pseudo_node | nodes_so_far]}
           end)
-          |> Enum.filter(&match?({:ok, _}, &1))
-          |> Enum.map(fn {:ok, node} -> node end)
+        {:ok, attrs_list}
+      else
+        # Create nodes one at a time, tracking positions as we go
+        {created_nodes, _} =
+          Enum.map_reduce(refined_trends, existing_nodes, fn trend, nodes_so_far ->
+            attrs = build_node_attrs(trend, nodes_so_far)
+            result = create_trend_node(attrs)
 
+            case result do
+              {:ok, node} ->
+                # Add new node to tracking list for next position calculation
+                {node, [node | nodes_so_far]}
+
+              {:error, _} ->
+                {nil, nodes_so_far}
+            end
+          end)
+
+        created_nodes = Enum.reject(created_nodes, &is_nil/1)
         Logger.info("Generated #{length(created_nodes)} trend nodes")
         {:ok, created_nodes}
       end

@@ -106,7 +106,7 @@ defmodule Gridroom.Grok.Scheduler do
     Logger.info("Running trend fetch and node generation...")
 
     result =
-      case NodeGenerator.generate_trend_nodes(max_nodes: 3) do
+      case NodeGenerator.generate_trend_nodes() do
         {:ok, nodes} ->
           {:ok, length(nodes)}
 
