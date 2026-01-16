@@ -20,6 +20,13 @@ if System.get_env("PHX_SERVER") do
   config :gridroom, GridroomWeb.Endpoint, server: true
 end
 
+# Grok API configuration (runtime)
+if api_key = System.get_env("XAI_API_KEY") do
+  config :gridroom, :grok,
+    api_key: api_key,
+    enabled: System.get_env("GROK_ENABLED", "false") == "true"
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

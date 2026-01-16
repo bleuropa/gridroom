@@ -37,14 +37,14 @@ Uses Grok's search/live tools to:
 - [ ] Scheduling mechanism for periodic trend checks
 
 ## Checklist
-- [ ] Set up Grok API credentials and configuration
-- [ ] Create Grok API client module
-- [ ] Implement trend fetching with search tools
-- [ ] Build node generation logic from trend data
-- [ ] Add positioning algorithm for new nodes
-- [ ] Implement rate limiting / cooldown
-- [ ] Create scheduled job (GenServer or Oban)
-- [ ] Add admin controls to enable/disable
+- [x] Set up Grok API credentials and configuration
+- [x] Create Grok API client module
+- [x] Implement trend fetching with search tools
+- [x] Build node generation logic from trend data
+- [x] Add positioning algorithm for new nodes
+- [x] Implement rate limiting / cooldown (via scheduler interval)
+- [x] Create scheduled job (GenServer)
+- [x] Add admin controls to enable/disable (env var GROK_ENABLED)
 - [ ] Test with live API
 
 ## Technical Details

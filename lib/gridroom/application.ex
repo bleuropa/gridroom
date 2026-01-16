@@ -14,6 +14,8 @@ defmodule Gridroom.Application do
       {Phoenix.PubSub, name: Gridroom.PubSub},
       # Presence for tracking users on the grid
       GridroomWeb.Presence,
+      # Grok API trend scheduler
+      Gridroom.Grok.Scheduler,
       # Start to serve requests, typically the last entry
       GridroomWeb.Endpoint
     ]

@@ -60,6 +60,14 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Grok API configuration
+config :gridroom, :grok,
+  api_key: System.get_env("XAI_API_KEY"),
+  base_url: "https://api.x.ai/v1",
+  model: "grok-3-fast-latest",
+  enabled: false,
+  schedule_interval_ms: :timer.hours(4)
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"
