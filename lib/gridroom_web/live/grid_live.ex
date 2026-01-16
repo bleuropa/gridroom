@@ -5,7 +5,7 @@ defmodule GridroomWeb.GridLive do
   alias GridroomWeb.Presence
 
   @impl true
-  def mount(_params, session, socket) do
+  def mount(params, session, socket) do
     # Get or create user from session
     session_id = session["_csrf_token"] || Ecto.UUID.generate()
     {:ok, user} = Accounts.get_or_create_user(session_id)
@@ -22,16 +22,30 @@ defmodule GridroomWeb.GridLive do
     # Load initial nodes with activity
     nodes = Grid.list_nodes_with_activity()
 
-    # Start player in a safe spot (not on top of a node)
+    # Check if returning from a node - position player just outside it
+    {player_pos, can_enter} = case params do
+      %{"from" => node_id} ->
+        case Grid.get_node(node_id) do
+          nil -> {%{x: -50, y: -50}, false}
+          node ->
+            # Position player 60 units away from node center (outside entry threshold)
+            offset_x = 60
+            offset_y = 0
+            {%{x: node.position_x + offset_x, y: node.position_y + offset_y}, false}
+        end
+      _ ->
+        {%{x: -50, y: -50}, false}
+    end
+
     {:ok,
      socket
      |> assign(:user, user)
      |> assign(:nodes, nodes)
-     |> assign(:player, %{x: -50, y: -50})
-     |> assign(:viewport, %{x: -50, y: -50, zoom: 1.0})
+     |> assign(:player, player_pos)
+     |> assign(:viewport, player_pos)
      |> assign(:users, %{})
      |> assign(:entering_node, nil)
-     |> assign(:can_enter_node, false)
+     |> assign(:can_enter_node, can_enter)
      |> assign(:page_title, "Gridroom")}
   end
 

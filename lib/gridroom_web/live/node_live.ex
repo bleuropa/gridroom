@@ -60,7 +60,7 @@ defmodule GridroomWeb.NodeLive do
     <div class="min-h-screen bg-grid-base flex flex-col">
       <!-- Header -->
       <header class="border-b border-grid-line px-6 py-4 flex items-center gap-4">
-        <a href="/" class="text-text-muted hover:text-text-primary transition-colors">
+        <a href={"/?from=#{@node.id}"} class="text-text-muted hover:text-text-primary transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
           </svg>
