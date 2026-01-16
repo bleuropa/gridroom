@@ -963,29 +963,50 @@ defmodule GridroomWeb.NodeLive do
   attr :sources, :list, required: true
   defp sources_display(assigns) do
     ~H"""
-    <div class="flex items-center gap-3 mt-2">
-      <span class="text-[#3a3330] text-[9px] uppercase tracking-[0.15em]">Sources</span>
-      <div class="flex items-center gap-2">
+    <div class="mt-3">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-[#3a3330] text-[9px] uppercase tracking-[0.15em]">Sources</span>
+        <div class="flex-1 h-px bg-gradient-to-r from-[#2a2522] to-transparent"></div>
+      </div>
+      <div class="space-y-1.5">
         <%= for {source, idx} <- Enum.with_index(@sources) do %>
           <a
             href={source["url"]}
             target="_blank"
             rel="noopener noreferrer"
-            class="group flex items-center gap-1.5 px-2 py-1 bg-[#141210] border border-[#1a1714] hover:border-[#c9a962]/30 transition-all duration-300"
+            class="group flex items-start gap-2 px-3 py-2 bg-[#0d0b0a]/50 border border-[#1a1714] hover:border-[#c9a962]/20 hover:bg-[#141210] transition-all duration-300"
           >
-            <!-- X icon for X sources -->
-            <%= if source["type"] == "x" do %>
-              <svg class="w-3 h-3 text-[#4a4038] group-hover:text-[#c9a962] transition-colors" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-              </svg>
-            <% else %>
-              <svg class="w-3 h-3 text-[#4a4038] group-hover:text-[#c9a962] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
-              </svg>
-            <% end %>
-            <span class="text-[9px] uppercase tracking-wider text-[#5a4f42] group-hover:text-[#c9a962] transition-colors">
-              <%= idx + 1 %>
-            </span>
+            <!-- Source number and icon -->
+            <div class="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+              <%= if source["type"] == "x" do %>
+                <svg class="w-3 h-3 text-[#4a4038] group-hover:text-[#c9a962] transition-colors" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+              <% else %>
+                <svg class="w-3 h-3 text-[#4a4038] group-hover:text-[#c9a962] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+                </svg>
+              <% end %>
+              <span class="text-[9px] uppercase tracking-wider text-[#3a3330] group-hover:text-[#5a4f42] transition-colors">
+                <%= idx + 1 %>
+              </span>
+            </div>
+            <!-- Summary text -->
+            <div class="flex-1 min-w-0">
+              <%= if source["summary"] && source["summary"] != "" do %>
+                <p class="text-[11px] text-[#8a7d6d] group-hover:text-[#a89882] transition-colors leading-relaxed">
+                  <%= source["summary"] %>
+                </p>
+              <% else %>
+                <p class="text-[10px] text-[#4a4038] italic">
+                  View source
+                </p>
+              <% end %>
+            </div>
+            <!-- External link indicator -->
+            <svg class="w-3 h-3 text-[#3a3330] group-hover:text-[#c9a962] transition-colors flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25"/>
+            </svg>
           </a>
         <% end %>
       </div>

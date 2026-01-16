@@ -7,7 +7,7 @@ defmodule Gridroom.Grok.NodeGenerator do
   """
 
   alias Gridroom.Grid
-  alias Gridroom.Grok.TrendFetcher
+  alias Gridroom.Grok.{TrendFetcher, TrendRefiner}
 
   require Logger
 
@@ -32,6 +32,7 @@ defmodule Gridroom.Grok.NodeGenerator do
   def generate_trend_nodes(opts \\ []) do
     max_nodes = Keyword.get(opts, :max_nodes, 3)
     dry_run = Keyword.get(opts, :dry_run, false)
+    skip_refinement = Keyword.get(opts, :skip_refinement, false)
 
     with {:ok, trends} <- TrendFetcher.fetch_trends(),
          existing_nodes <- Grid.list_nodes(),
@@ -42,11 +43,20 @@ defmodule Gridroom.Grok.NodeGenerator do
         |> Enum.reject(fn trend -> MapSet.member?(existing_titles, trend.title) end)
         |> Enum.take(max_nodes)
 
+      # Second LLM pass: refine descriptions and generate source TLDRs
+      refined_trends =
+        if skip_refinement do
+          new_trends
+        else
+          Logger.info("Refining #{length(new_trends)} trends with LLM...")
+          TrendRefiner.refine_trends(new_trends)
+        end
+
       if dry_run do
-        {:ok, Enum.map(new_trends, &build_node_attrs(&1, existing_nodes))}
+        {:ok, Enum.map(refined_trends, &build_node_attrs(&1, existing_nodes))}
       else
         created_nodes =
-          new_trends
+          refined_trends
           |> Enum.map(fn trend ->
             attrs = build_node_attrs(trend, existing_nodes)
             create_trend_node(attrs)
