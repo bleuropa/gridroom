@@ -21,9 +21,9 @@
 
 ## Next Up (Top 3 Priorities)
 
-1. Implement infinite pannable grid canvas
-2. Add user presence as abstract glyphs/shapes
-3. Create topic nodes and conversation rooms
+1. [[T-2025-003-gridroom-mvp]] - Build the full MVP experience
+2. AI content seeding with xAI/Grok
+3. Deploy to production
 
 ---
 
