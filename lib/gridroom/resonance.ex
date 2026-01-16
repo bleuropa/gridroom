@@ -65,11 +65,14 @@ defmodule Gridroom.Resonance do
   @doc """
   Returns the user's resonance level as an atom.
   """
-  def resonance_level(%User{resonance: r}) when r <= @depleted_threshold, do: :depleted
-  def resonance_level(%User{resonance: r}) when r <= @low_threshold, do: :low
-  def resonance_level(%User{resonance: r}) when r < @elevated_threshold, do: :normal
-  def resonance_level(%User{resonance: r}) when r < @radiant_threshold, do: :elevated
-  def resonance_level(%User{}), do: :radiant
+  def resonance_level(%User{resonance: r}), do: resonance_level_for_value(r)
+  def resonance_level(%{resonance: r}), do: resonance_level_for_value(r)
+
+  defp resonance_level_for_value(r) when r <= @depleted_threshold, do: :depleted
+  defp resonance_level_for_value(r) when r <= @low_threshold, do: :low
+  defp resonance_level_for_value(r) when r < @elevated_threshold, do: :normal
+  defp resonance_level_for_value(r) when r < @radiant_threshold, do: :elevated
+  defp resonance_level_for_value(_), do: :radiant
 
   @doc """
   Returns a descriptive string for the user's resonance state.
@@ -122,7 +125,7 @@ defmodule Gridroom.Resonance do
           # Apply the resonance change
           amount = @amounts[reason]
 
-          Repo.transaction(fn ->
+          result = Repo.transaction(fn ->
             # Update target user's resonance
             target_user = Repo.get!(User, target_user_id)
             new_resonance = clamp_resonance(target_user.resonance + amount)
@@ -150,10 +153,32 @@ defmodule Gridroom.Resonance do
             updated_user
           end)
 
+          # Broadcast resonance change to the node
+          case result do
+            {:ok, updated_user} ->
+              broadcast_resonance_change(updated_user, message.node_id)
+              {:ok, updated_user}
+
+            error ->
+              error
+          end
+
         {:error, :cooldown_active} ->
           {:error, :cooldown_active}
       end
     end
+  end
+
+  @doc """
+  Broadcasts resonance change to a specific node.
+  Used to update presence and trigger kick checks.
+  """
+  def broadcast_resonance_change(%User{} = user, node_id) do
+    Phoenix.PubSub.broadcast(
+      Gridroom.PubSub,
+      "node:#{node_id}",
+      {:resonance_changed, user}
+    )
   end
 
   defp check_feedback_cooldown(user_id, target_user_id) do

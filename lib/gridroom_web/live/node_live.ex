@@ -22,6 +22,18 @@ defmodule GridroomWeb.NodeLive do
           Accounts.get_user(user_id)
       end
 
+    # Check if user has enough resonance to enter
+    if Resonance.should_kick?(user) do
+      {:ok,
+       socket
+       |> put_flash(:error, "Your resonance is too low to enter this space. Contribute positively elsewhere to rebuild.")
+       |> push_navigate(to: ~p"/")}
+    else
+      mount_node(socket, node, user, id)
+    end
+  end
+
+  defp mount_node(socket, node, user, id) do
     # Subscribe to messages and presence for this node
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "node:#{id}")
@@ -58,7 +70,8 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:typing, false)
      |> assign(:selected_user, nil)
      |> assign(:selected_user_activity, [])
-     |> assign(:is_remembered, false)}
+     |> assign(:is_remembered, false)
+     |> assign(:kick_warning, nil)}
   end
 
   defp presence_to_map(presence_list) do
@@ -233,6 +246,69 @@ defmodule GridroomWeb.NodeLive do
   end
 
   @impl true
+  def handle_info({:resonance_changed, changed_user}, socket) do
+    user = socket.assigns.user
+
+    # Update presence data for the changed user
+    present_users =
+      if Map.has_key?(socket.assigns.present_users, changed_user.id) do
+        Map.update!(socket.assigns.present_users, changed_user.id, fn meta ->
+          %{meta | resonance: changed_user.resonance}
+        end)
+      else
+        socket.assigns.present_users
+      end
+
+    # Check if current user is the one with changed resonance
+    socket =
+      if user.id == changed_user.id do
+        # Update our local user data
+        socket = assign(socket, :user, changed_user)
+
+        # Check if we should be kicked
+        if Resonance.should_kick?(changed_user) and is_nil(socket.assigns.kick_warning) do
+          # Schedule kick after warning period
+          Process.send_after(self(), :execute_kick, 5000)
+
+          assign(socket, :kick_warning, %{
+            reason: :resonance_depleted,
+            countdown: 5
+          })
+        else
+          socket
+        end
+      else
+        socket
+      end
+
+    {:noreply, assign(socket, :present_users, present_users)}
+  end
+
+  @impl true
+  def handle_info(:execute_kick, socket) do
+    if socket.assigns.kick_warning do
+      {:noreply,
+       socket
+       |> put_flash(:error, "Your resonance is too low to remain in this space.")
+       |> push_navigate(to: ~p"/")}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info(:countdown_tick, socket) do
+    case socket.assigns.kick_warning do
+      %{countdown: c} when c > 1 ->
+        Process.send_after(self(), :countdown_tick, 1000)
+        {:noreply, assign(socket, :kick_warning, %{socket.assigns.kick_warning | countdown: c - 1})}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-[#0a0908] flex flex-col room-entrance relative" phx-hook="RoomEntrance" id="room-container">
@@ -369,6 +445,44 @@ defmodule GridroomWeb.NodeLive do
           is_remembered={@is_remembered}
         />
       <% end %>
+
+      <!-- Kick warning overlay -->
+      <%= if @kick_warning do %>
+        <.kick_warning_overlay warning={@kick_warning} />
+      <% end %>
+    </div>
+    """
+  end
+
+  defp kick_warning_overlay(assigns) do
+    ~H"""
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center animate-fade-in">
+      <div class="bg-[#0d0b0a] border border-[#d4756a]/40 p-8 max-w-md text-center">
+        <!-- Warning icon -->
+        <div class="w-16 h-16 mx-auto mb-6 relative">
+          <svg viewBox="0 0 24 24" class="w-full h-full text-[#d4756a] animate-pulse">
+            <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" opacity="0"/>
+            <path fill="currentColor" d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+          </svg>
+          <!-- Pulsing ring -->
+          <div class="absolute inset-0 border-2 border-[#d4756a]/50 animate-ping-slow"></div>
+        </div>
+
+        <!-- Message -->
+        <h2 class="text-[#d4756a] text-lg tracking-wider uppercase mb-3">Resonance Depleted</h2>
+        <p class="text-[#8a7d6d] text-sm leading-relaxed mb-6">
+          Your energy has fallen too low to remain in this space.
+          You will be returned to the grid momentarily.
+        </p>
+
+        <!-- Visual divider -->
+        <div class="w-24 h-px bg-gradient-to-r from-transparent via-[#d4756a]/40 to-transparent mx-auto mb-6"></div>
+
+        <!-- Advice -->
+        <p class="text-[#5a4f42] text-xs tracking-wide">
+          Contribute positively to rebuild your resonance.
+        </p>
+      </div>
     </div>
     """
   end
@@ -536,6 +650,18 @@ defmodule GridroomWeb.NodeLive do
   attr :is_recognized, :boolean, default: false
   attr :on_click, :string, default: nil
   defp presence_diamond(assigns) do
+    # Calculate resonance-based visual properties
+    resonance = assigns.presence[:resonance] || 50
+    resonance_level = Resonance.resonance_level(%{resonance: resonance})
+    {base_opacity, glow_intensity, is_depleted} = resonance_visual_props(resonance_level)
+
+    assigns =
+      assigns
+      |> assign(:base_opacity, base_opacity)
+      |> assign(:glow_intensity, glow_intensity)
+      |> assign(:is_depleted, is_depleted)
+      |> assign(:resonance_level, resonance_level)
+
     ~H"""
     <div
       class={"relative group #{if @on_click, do: "cursor-pointer hover:scale-110 transition-all duration-200"}"}
@@ -546,8 +672,33 @@ defmodule GridroomWeb.NodeLive do
         width="28"
         height="28"
         viewBox="-14 -14 28 28"
-        class={"transition-all duration-300 #{if @presence.typing, do: "animate-pulse scale-110"}"}
+        class={"transition-all duration-300 #{if @presence.typing, do: "animate-pulse scale-110"} #{if @is_depleted, do: "opacity-50"}"}
       >
+        <defs>
+          <!-- Glow filter for high resonance -->
+          <%= if @glow_intensity > 0 do %>
+            <filter id={"glow-#{@presence.user_id}"} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation={@glow_intensity} result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          <% end %>
+        </defs>
+
+        <!-- Radiant aura for high resonance users -->
+        <%= if @resonance_level == :radiant && !@is_self do %>
+          <polygon
+            points="0,-13 13,0 0,13 -13,0"
+            fill="none"
+            stroke="#c9a962"
+            stroke-width="1.5"
+            opacity="0.5"
+            class="animate-breathe"
+          />
+        <% end %>
+
         <!-- Recognition glow ring for remembered users -->
         <%= if @is_recognized && !@is_self do %>
           <polygon
@@ -566,6 +717,7 @@ defmodule GridroomWeb.NodeLive do
             opacity="0.3"
           />
         <% end %>
+
         <!-- Self indicator ring -->
         <%= if @is_self do %>
           <polygon
@@ -576,31 +728,57 @@ defmodule GridroomWeb.NodeLive do
             opacity="0.7"
           />
         <% end %>
-        <!-- Diamond shape -->
-        <polygon
-          points="0,-9 9,0 0,9 -9,0"
-          fill={@presence.glyph_color}
-          opacity={if @is_self, do: "1", else: "0.85"}
-        />
+
+        <!-- Depleted warning ring (red pulse) -->
+        <%= if @is_depleted && !@is_self do %>
+          <polygon
+            points="0,-12 12,0 0,12 -12,0"
+            fill="none"
+            stroke="#d4756a"
+            stroke-width="1"
+            opacity="0.6"
+            class="animate-pulse"
+          />
+        <% end %>
+
+        <!-- Diamond shape with resonance-based opacity -->
+        <g filter={if @glow_intensity > 0, do: "url(#glow-#{@presence.user_id})"}>
+          <polygon
+            points="0,-9 9,0 0,9 -9,0"
+            fill={@presence.glyph_color}
+            opacity={if @is_self, do: "1", else: @base_opacity}
+          />
+        </g>
+
         <!-- Inner highlight -->
         <polygon
           points="0,-5 5,0 0,5 -5,0"
           fill={@presence.glyph_color}
-          opacity={if @is_self, do: "0.5", else: "0.3"}
-          class={if @is_self || @is_recognized, do: "animate-breathe"}
+          opacity={if @is_self, do: "0.5", else: Float.to_string(@base_opacity * 0.4)}
+          class={if @is_self || @is_recognized || @resonance_level in [:elevated, :radiant], do: "animate-breathe"}
         />
-        <!-- Tiny center spark for recognized users -->
-        <%= if @is_recognized && !@is_self do %>
-          <circle r="1.5" fill="#c9a962" opacity="0.8" class="animate-breathe-fast" />
+
+        <!-- Tiny center spark for recognized or radiant users -->
+        <%= if (@is_recognized || @resonance_level == :radiant) && !@is_self do %>
+          <circle
+            r="1.5"
+            fill={if @resonance_level == :radiant, do: "#c9a962", else: "#c9a962"}
+            opacity="0.8"
+            class="animate-breathe-fast"
+          />
         <% end %>
       </svg>
-      <!-- Tooltip with username and recognition status -->
+
+      <!-- Tooltip with username, recognition status, and resonance -->
       <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-[#0d0b0a] border border-[#2a2522] text-[10px] tracking-wider uppercase whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-lg">
-        <span class={if @is_recognized && !@is_self, do: "text-[#c9a962]", else: "text-[#8a7d6d]"}>
+        <span class={resonance_tooltip_color(@resonance_level, @is_recognized, @is_self)}>
           <%= @presence.username || "Anonymous" %><%= if @is_self, do: " (you)" %>
         </span>
         <%= if @is_recognized && !@is_self do %>
           <span class="ml-2 text-[#5a4f42]">• remembered</span>
+        <% end %>
+        <%= if @is_depleted && !@is_self do %>
+          <span class="ml-2 text-[#d4756a]">• unstable</span>
         <% end %>
       </div>
     </div>
@@ -762,4 +940,18 @@ defmodule GridroomWeb.NodeLive do
   defp resonance_bar_color(:elevated), do: "bg-[#8b9a7d]"
   defp resonance_bar_color(:radiant), do: "bg-gradient-to-r from-[#c9a962] to-[#d4b46d]"
   defp resonance_bar_color(_), do: "bg-[#5a4f42]"
+
+  # Returns {base_opacity, glow_intensity, is_depleted} based on resonance level
+  defp resonance_visual_props(:depleted), do: {0.4, 0, true}
+  defp resonance_visual_props(:low), do: {0.6, 0, false}
+  defp resonance_visual_props(:normal), do: {0.85, 0, false}
+  defp resonance_visual_props(:elevated), do: {0.95, 1, false}
+  defp resonance_visual_props(:radiant), do: {1.0, 2, false}
+  defp resonance_visual_props(_), do: {0.85, 0, false}
+
+  defp resonance_tooltip_color(:depleted, _, false), do: "text-[#d4756a]"
+  defp resonance_tooltip_color(:radiant, _, false), do: "text-[#c9a962]"
+  defp resonance_tooltip_color(_, true, false), do: "text-[#c9a962]"
+  defp resonance_tooltip_color(_, _, true), do: "text-[#c9a962]"
+  defp resonance_tooltip_color(_, _, _), do: "text-[#8a7d6d]"
 end

@@ -54,9 +54,16 @@ defmodule GridroomWeb.Presence do
       username: user.username,
       glyph_shape: user.glyph_shape,
       glyph_color: user.glyph_color,
+      resonance: user.resonance,
       typing: false,
       last_active: System.system_time(:second)
     })
+  end
+
+  def update_resonance(pid, %User{} = user, node_id) do
+    update(pid, node_topic(node_id), user.id, fn meta ->
+      %{meta | resonance: user.resonance}
+    end)
   end
 
   def set_typing(pid, %User{} = user, node_id, typing) do
