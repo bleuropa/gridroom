@@ -111,11 +111,11 @@ defmodule GridroomWeb.NodeLive do
         </div>
       </header>
 
-      <!-- Copied toast -->
+      <!-- Copied toast - Lumon style -->
       <%= if @show_copied_toast do %>
         <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div class="bg-accent-warm text-grid-base px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
-            Link copied to clipboard
+          <div class="bg-[#1a1714]/95 border border-[#2a2522] px-5 py-2.5 text-xs tracking-wider uppercase text-[#8a7d6d]">
+            <span class="text-[#c9a962]">&#x2713;</span> Link copied
           </div>
         </div>
       <% end %>
