@@ -13,6 +13,40 @@ defmodule Gridroom.Grid do
     Repo.all(Node)
   end
 
+  @doc """
+  Lists nodes with their activity level based on recent messages.
+  Activity is calculated from messages in the last hour.
+  """
+  def list_nodes_with_activity do
+    one_hour_ago = DateTime.utc_now() |> DateTime.add(-3600, :second)
+
+    # Get message counts per node in the last hour
+    activity_query =
+      from m in Message,
+        where: m.inserted_at >= ^one_hour_ago,
+        group_by: m.node_id,
+        select: {m.node_id, count(m.id)}
+
+    activity_map =
+      activity_query
+      |> Repo.all()
+      |> Map.new()
+
+    # Get all nodes and attach activity level
+    Node
+    |> Repo.all()
+    |> Enum.map(fn node ->
+      message_count = Map.get(activity_map, node.id, 0)
+      activity_level = calculate_activity_level(message_count)
+      Map.put(node, :activity, %{count: message_count, level: activity_level})
+    end)
+  end
+
+  defp calculate_activity_level(count) when count == 0, do: :dormant
+  defp calculate_activity_level(count) when count < 3, do: :quiet
+  defp calculate_activity_level(count) when count < 10, do: :active
+  defp calculate_activity_level(_count), do: :buzzing
+
   def list_nodes_in_bounds(min_x, max_x, min_y, max_y) do
     Node
     |> where([n], n.position_x >= ^min_x and n.position_x <= ^max_x)

@@ -19,15 +19,17 @@ defmodule GridroomWeb.GridLive do
     # Seed nodes if needed (first time setup)
     Grid.seed_initial_nodes!()
 
-    # Load initial nodes
-    nodes = Grid.list_nodes()
+    # Load initial nodes with activity
+    nodes = Grid.list_nodes_with_activity()
 
     {:ok,
      socket
      |> assign(:user, user)
      |> assign(:nodes, nodes)
+     |> assign(:player, %{x: 0, y: 0})
      |> assign(:viewport, %{x: 0, y: 0, zoom: 1.0})
      |> assign(:users, %{})
+     |> assign(:entering_node, nil)
      |> assign(:page_title, "Gridroom")}
   end
 
@@ -47,10 +49,40 @@ defmodule GridroomWeb.GridLive do
   end
 
   @impl true
+  def handle_event("move", %{"dx" => dx, "dy" => dy}, socket) do
+    player = socket.assigns.player
+    speed = 8 / socket.assigns.viewport.zoom
+    new_player = %{x: player.x + dx * speed, y: player.y + dy * speed}
+
+    # Update presence with new position
+    user = socket.assigns.user
+    Presence.update_position(self(), user, new_player.x, new_player.y)
+
+    # Check for node proximity
+    socket = check_node_proximity(socket, new_player)
+
+    {:noreply, assign(socket, :player, new_player)}
+  end
+
+  @impl true
   def handle_event("update_position", %{"x" => x, "y" => y}, socket) do
     user = socket.assigns.user
     Presence.update_position(self(), user, x, y)
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("enter_node", %{"id" => node_id}, socket) do
+    # Trigger the entry animation
+    {:noreply,
+     socket
+     |> assign(:entering_node, node_id)
+     |> push_event("entering_node", %{node_id: node_id})}
+  end
+
+  @impl true
+  def handle_event("navigate_to_node", %{"id" => node_id}, socket) do
+    {:noreply, push_navigate(socket, to: "/node/#{node_id}")}
   end
 
   @impl true
@@ -64,11 +96,14 @@ defmodule GridroomWeb.GridLive do
     ~H"""
     <div
       id="grid-container"
-      class="fixed inset-0 overflow-hidden cursor-move select-none"
+      class={"fixed inset-0 overflow-hidden select-none #{if @entering_node, do: "entering-node", else: ""}"}
       phx-hook="GridCanvas"
       data-viewport-x={@viewport.x}
       data-viewport-y={@viewport.y}
       data-viewport-zoom={@viewport.zoom}
+      data-player-x={@player.x}
+      data-player-y={@player.y}
+      data-entering-node={@entering_node}
     >
       <svg
         id="grid-svg"
@@ -157,32 +192,65 @@ defmodule GridroomWeb.GridLive do
 
         <!-- Topic nodes -->
         <%= for {node, index} <- Enum.with_index(@nodes) do %>
+          <% activity = Map.get(node, :activity, %{level: :dormant, count: 0}) %>
           <g
-            class="node"
+            class={"node node-activity-#{activity.level}"}
+            data-node-id={node.id}
             transform={"translate(#{node.position_x}, #{node.position_y})"}
             style={"animation-delay: #{rem(index, 5) * -0.8}s;"}
           >
-            <!-- Outer glow ring -->
+            <!-- Activity rings - more rings = more activity -->
+            <%= if activity.level == :buzzing do %>
+              <circle r="50" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.3" opacity="0.15" class="animate-pulse-ring" />
+              <circle r="45" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.4" opacity="0.2" class="animate-pulse-ring" style="animation-delay: -0.3s;" />
+            <% end %>
+            <%= if activity.level in [:active, :buzzing] do %>
+              <circle r="40" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.5" opacity="0.25" class="animate-pulse-ring" style="animation-delay: -0.6s;" />
+            <% end %>
+
+            <!-- Outer glow ring - intensity based on activity -->
             <circle
               r="35"
               fill="none"
               stroke={node_type_color(node.node_type)}
-              stroke-width="0.5"
-              opacity="0.2"
-              class="animate-breathe"
+              stroke-width={activity_stroke_width(activity.level)}
+              opacity={activity_opacity(activity.level)}
+              class={if activity.level in [:active, :buzzing], do: "animate-breathe-fast", else: "animate-breathe"}
             />
 
             <!-- Node shape with link -->
             <a href={~p"/node/#{node.id}"}>
-              <.node_shape node={node} />
+              <.node_shape node={node} activity_level={activity.level} />
             </a>
+
+            <!-- Activity indicator dot -->
+            <%= if activity.count > 0 do %>
+              <circle
+                cx="18"
+                cy="-18"
+                r="4"
+                fill={activity_dot_color(activity.level)}
+                class={if activity.level == :buzzing, do: "animate-pulse", else: ""}
+              />
+              <%= if activity.count > 1 do %>
+                <text
+                  x="18"
+                  y="-15"
+                  text-anchor="middle"
+                  fill="#0d0b0a"
+                  style="font-size: 6px; font-weight: bold;"
+                >
+                  <%= min(activity.count, 99) %>
+                </text>
+              <% end %>
+            <% end %>
 
             <!-- Label with backdrop -->
             <text
               y="42"
               text-anchor="middle"
               class="node-label pointer-events-none"
-              fill="#c4b8a8"
+              fill={if activity.level == :dormant, do: "#6a5f52", else: "#c4b8a8"}
               style="font-size: 11px; font-family: 'Space Grotesk', sans-serif;"
             >
               <%= truncate_title(node.title, 24) %>
@@ -203,16 +271,18 @@ defmodule GridroomWeb.GridLive do
           <% end %>
         <% end %>
 
-        <!-- Current user (you) - centered -->
+        <!-- Current user (you) - at player position -->
         <g
           id="current-user"
           class="user-glyph-self"
-          transform={"translate(#{@viewport.x * -1}, #{@viewport.y * -1})"}
+          transform={"translate(#{@player.x}, #{@player.y})"}
           filter="url(#self-glow)"
         >
           <.user_glyph shape={@user.glyph_shape} color={@user.glyph_color} pulse={true} />
           <!-- Subtle pulse ring -->
           <circle r="16" fill="none" stroke={@user.glyph_color} stroke-width="0.5" opacity="0.3" class="animate-pulse-glow" />
+          <!-- Movement indicator -->
+          <circle r="20" fill="none" stroke={@user.glyph_color} stroke-width="0.3" opacity="0.15" stroke-dasharray="2,4" class="animate-spin-slow" />
         </g>
       </svg>
 
@@ -239,12 +309,14 @@ defmodule GridroomWeb.GridLive do
         <h1 class="text-[#5a4f42] text-sm tracking-[0.2em] uppercase font-light">Gridroom</h1>
       </div>
 
-      <!-- Hint overlay for new users -->
-      <%= if map_size(@users) == 0 do %>
-        <div class="absolute bottom-6 right-6 ui-overlay text-[#3a3530] max-w-xs text-right">
-          <p class="text-xs leading-relaxed">drag to explore · click nodes to enter · others will appear</p>
-        </div>
-      <% end %>
+      <!-- Controls hint -->
+      <div class="absolute bottom-6 right-6 ui-overlay text-[#3a3530] max-w-xs text-right">
+        <p class="text-xs leading-relaxed opacity-60">
+          <span class="text-[#5a4f42]">WASD</span> move ·
+          <span class="text-[#5a4f42]">drag</span> pan ·
+          <span class="text-[#5a4f42]">space</span> center
+        </p>
+      </div>
     </div>
     """
   end
@@ -263,11 +335,56 @@ defmodule GridroomWeb.GridLive do
     :math.sqrt(:math.pow(n1.position_x - n2.position_x, 2) + :math.pow(n1.position_y - n2.position_y, 2))
   end
 
+  defp distance_to_node(player, node) do
+    :math.sqrt(:math.pow(player.x - node.position_x, 2) + :math.pow(player.y - node.position_y, 2))
+  end
+
+  @entry_threshold 40
+
+  defp check_node_proximity(socket, player) do
+    nodes = socket.assigns.nodes
+    entering = socket.assigns.entering_node
+
+    # Don't check if already entering a node
+    if entering do
+      socket
+    else
+      case Enum.find(nodes, fn node -> distance_to_node(player, node) < @entry_threshold end) do
+        nil -> socket
+        node ->
+          socket
+          |> assign(:entering_node, node.id)
+          |> push_event("entering_node", %{node_id: node.id})
+      end
+    end
+  end
+
   defp node_type_color("discussion"), do: "#c9a962"
   defp node_type_color("question"), do: "#7eb8da"
   defp node_type_color("debate"), do: "#d4756a"
   defp node_type_color("quiet"), do: "#8b9a7d"
   defp node_type_color(_), do: "#c9a962"
+
+  # Activity-based styling
+  defp activity_stroke_width(:dormant), do: "0.3"
+  defp activity_stroke_width(:quiet), do: "0.5"
+  defp activity_stroke_width(:active), do: "0.8"
+  defp activity_stroke_width(:buzzing), do: "1.2"
+
+  defp activity_opacity(:dormant), do: "0.1"
+  defp activity_opacity(:quiet), do: "0.2"
+  defp activity_opacity(:active), do: "0.35"
+  defp activity_opacity(:buzzing), do: "0.5"
+
+  defp activity_dot_color(:quiet), do: "#6a8a5a"
+  defp activity_dot_color(:active), do: "#c9a962"
+  defp activity_dot_color(:buzzing), do: "#e8c547"
+  defp activity_dot_color(_), do: "#555"
+
+  defp node_opacity(:dormant), do: "0.5"
+  defp node_opacity(:quiet), do: "0.7"
+  defp node_opacity(:active), do: "0.85"
+  defp node_opacity(:buzzing), do: "1.0"
 
   defp truncate_title(title, max_length) do
     if String.length(title) > max_length do
@@ -279,7 +396,11 @@ defmodule GridroomWeb.GridLive do
 
   # Node shape component
   attr :node, :map, required: true
+  attr :activity_level, :atom, default: :dormant
   defp node_shape(assigns) do
+    opacity = node_opacity(assigns.activity_level)
+    assigns = assign(assigns, :opacity, opacity)
+
     ~H"""
     <a href={~p"/node/#{@node.id}"} class="block">
       <%= case @node.glyph_shape do %>
@@ -287,30 +408,30 @@ defmodule GridroomWeb.GridLive do
           <polygon
             points="20,0 40,12 40,36 20,48 0,36 0,12"
             fill={@node.glyph_color}
-            opacity="0.8"
-            filter="url(#glow)"
+            opacity={@opacity}
+            filter="url(#node-glow)"
           />
         <% "circle" -> %>
           <circle
             r="20"
             fill={@node.glyph_color}
-            opacity="0.8"
-            filter="url(#glow)"
+            opacity={@opacity}
+            filter="url(#node-glow)"
           />
         <% "square" -> %>
           <rect
             x="-18" y="-18"
             width="36" height="36"
             fill={@node.glyph_color}
-            opacity="0.8"
-            filter="url(#glow)"
+            opacity={@opacity}
+            filter="url(#node-glow)"
           />
         <% _ -> %>
           <circle
             r="20"
             fill={@node.glyph_color}
-            opacity="0.8"
-            filter="url(#glow)"
+            opacity={@opacity}
+            filter="url(#node-glow)"
           />
       <% end %>
     </a>

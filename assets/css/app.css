@@ -296,12 +296,107 @@ body {
 .animate-float { animation: float 6s var(--ease-in-out-sine) infinite; }
 .animate-pulse-glow { animation: pulse-glow 3s var(--ease-in-out-sine) infinite; }
 .animate-breathe { animation: breathe 4s var(--ease-in-out-sine) infinite; }
+.animate-breathe-fast { animation: breathe 2s var(--ease-in-out-sine) infinite; }
 .animate-drift { animation: drift 20s linear infinite; }
+
+/* Activity pulse rings */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s var(--ease-out-expo) infinite;
+  transform-origin: center;
+}
+
+/* Slow spin for movement indicator */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+  transform-origin: center;
+}
 
 /* Stagger animations for organic feel */
 .node:nth-child(odd) { animation-delay: -1s; }
 .node:nth-child(3n) { animation-delay: -2s; }
 .node:nth-child(5n) { animation-delay: -0.5s; }
+
+/* ============================================
+   Node Entry Animation
+   ============================================ */
+
+@keyframes node-zoom-in {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px var(--glow-faint));
+  }
+  50% {
+    transform: scale(1.5);
+    filter: drop-shadow(0 0 40px var(--glow-warm));
+  }
+  100% {
+    transform: scale(50);
+    filter: drop-shadow(0 0 100px var(--ember));
+    opacity: 0;
+  }
+}
+
+@keyframes screen-fade-white {
+  0% {
+    opacity: 0;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+    background: var(--void);
+  }
+}
+
+.node-entering {
+  animation: node-zoom-in 0.8s var(--ease-out-expo) forwards;
+  z-index: 1000;
+}
+
+.entering-node::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: var(--void);
+  animation: screen-fade-white 0.8s var(--ease-out-expo) forwards;
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* Activity-based node styling */
+.node-activity-dormant {
+  opacity: 0.6;
+}
+
+.node-activity-quiet {
+  opacity: 0.8;
+}
+
+.node-activity-active {
+  opacity: 0.95;
+}
+
+.node-activity-buzzing {
+  opacity: 1;
+  filter: drop-shadow(0 0 12px var(--glow-warm));
+}
 
 /* ============================================
    UI Overlays

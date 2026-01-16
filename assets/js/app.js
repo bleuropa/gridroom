@@ -27,12 +27,14 @@ import topbar from "../vendor/topbar"
 // Hooks for Gridroom
 const Hooks = {}
 
-// Grid Canvas Hook - handles pan/zoom
+// Grid Canvas Hook - handles pan/zoom and player movement
 Hooks.GridCanvas = {
   mounted() {
     this.isDragging = false
     this.lastX = 0
     this.lastY = 0
+    this.keysPressed = new Set()
+    this.moveInterval = null
 
     // Mouse events for panning
     this.el.addEventListener('mousedown', (e) => {
@@ -54,7 +56,7 @@ Hooks.GridCanvas = {
 
     window.addEventListener('mouseup', () => {
       this.isDragging = false
-      this.el.style.cursor = 'move'
+      this.el.style.cursor = 'default'
     })
 
     // Wheel for zooming
@@ -66,6 +68,36 @@ Hooks.GridCanvas = {
         y: e.clientY
       })
     }, { passive: false })
+
+    // Keyboard movement (WASD / Arrow keys)
+    this.handleKeyDown = (e) => {
+      const key = e.key.toLowerCase()
+
+      // Center on player (Space or C)
+      if (key === ' ' || key === 'c') {
+        e.preventDefault()
+        this.centerOnPlayer()
+        return
+      }
+
+      // Movement keys
+      if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+        e.preventDefault()
+        this.keysPressed.add(key)
+        this.startMoving()
+      }
+    }
+
+    this.handleKeyUp = (e) => {
+      const key = e.key.toLowerCase()
+      this.keysPressed.delete(key)
+      if (this.keysPressed.size === 0) {
+        this.stopMoving()
+      }
+    }
+
+    window.addEventListener('keydown', this.handleKeyDown)
+    window.addEventListener('keyup', this.handleKeyUp)
 
     // Touch events for mobile
     let lastTouchX = 0
@@ -87,6 +119,95 @@ Hooks.GridCanvas = {
         this.pushEvent('pan', { dx, dy })
       }
     })
+
+    // Handle node entry animation
+    this.handleEvent("entering_node", ({node_id}) => {
+      this.el.classList.add('entering-node')
+
+      // Add zoom effect to the entering node
+      const nodeEl = document.querySelector(`[data-node-id="${node_id}"]`)
+      if (nodeEl) {
+        nodeEl.classList.add('node-entering')
+      }
+
+      // Navigate after animation
+      setTimeout(() => {
+        this.pushEvent('navigate_to_node', { id: node_id })
+      }, 800)
+    })
+  },
+
+  destroyed() {
+    window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUp)
+    this.stopMoving()
+  },
+
+  startMoving() {
+    if (this.moveInterval) return
+
+    this.moveInterval = setInterval(() => {
+      let dx = 0, dy = 0
+
+      if (this.keysPressed.has('w') || this.keysPressed.has('arrowup')) dy = -1
+      if (this.keysPressed.has('s') || this.keysPressed.has('arrowdown')) dy = 1
+      if (this.keysPressed.has('a') || this.keysPressed.has('arrowleft')) dx = -1
+      if (this.keysPressed.has('d') || this.keysPressed.has('arrowright')) dx = 1
+
+      // Normalize diagonal movement
+      if (dx !== 0 && dy !== 0) {
+        dx *= 0.707
+        dy *= 0.707
+      }
+
+      if (dx !== 0 || dy !== 0) {
+        this.pushEvent('move', { dx, dy })
+      }
+    }, 16) // ~60fps
+  },
+
+  stopMoving() {
+    if (this.moveInterval) {
+      clearInterval(this.moveInterval)
+      this.moveInterval = null
+    }
+  },
+
+  centerOnPlayer() {
+    const playerX = parseFloat(this.el.dataset.playerX) || 0
+    const playerY = parseFloat(this.el.dataset.playerY) || 0
+    const viewportX = parseFloat(this.el.dataset.viewportX) || 0
+    const viewportY = parseFloat(this.el.dataset.viewportY) || 0
+
+    // Calculate the offset needed to center on player
+    const dx = playerX - viewportX
+    const dy = playerY - viewportY
+
+    // Animate smoothly by sending incremental pan events
+    this.animatePan(dx, dy)
+  },
+
+  animatePan(targetDx, targetDy) {
+    const steps = 20
+    const stepDx = targetDx / steps
+    const stepDy = targetDy / steps
+    let step = 0
+
+    const animate = () => {
+      if (step < steps) {
+        // Ease out
+        const progress = step / steps
+        const ease = 1 - Math.pow(1 - progress, 3)
+        const currentDx = stepDx * (1 + (1 - ease))
+        const currentDy = stepDy * (1 + (1 - ease))
+
+        this.pushEvent('pan', { dx: currentDx, dy: currentDy })
+        step++
+        requestAnimationFrame(animate)
+      }
+    }
+
+    requestAnimationFrame(animate)
   }
 }
 
