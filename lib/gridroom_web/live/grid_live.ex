@@ -42,7 +42,7 @@ defmodule GridroomWeb.GridLive do
      |> assign(:user, user)
      |> assign(:nodes, nodes)
      |> assign(:player, player_pos)
-     |> assign(:viewport, player_pos)
+     |> assign(:viewport, %{x: player_pos.x, y: player_pos.y, zoom: 1.0})
      |> assign(:users, %{})
      |> assign(:entering_node, nil)
      |> assign(:can_enter_node, can_enter)
