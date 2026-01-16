@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-013-share-nodes-via-url]]
-**Branch**: feat/T-2025-013-share-nodes-via-url
-**Goal**: Enable sharing node URLs for viral growth
+**Active Task**: [[T-2025-010-enhanced-node-chat-viz]]
+**Branch**: feat/T-2025-010-enhanced-node-chat-viz
+**Goal**: Diamond presence row and spatial chat room experience
 
 ---
 
