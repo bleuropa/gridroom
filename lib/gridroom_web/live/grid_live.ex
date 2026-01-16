@@ -25,9 +25,10 @@ defmodule GridroomWeb.GridLive do
           Accounts.get_user(user_id)
       end
 
-    # Subscribe to presence updates
+    # Subscribe to presence and node updates
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "grid:presence")
+      Phoenix.PubSub.subscribe(Gridroom.PubSub, "grid:nodes")
       Presence.track_user(self(), user)
     end
 
@@ -65,7 +66,9 @@ defmodule GridroomWeb.GridLive do
      |> assign(:can_enter_node, can_enter)
      |> assign(:dwelling_node, nil)
      |> assign(:dwell_progress, 0.0)
-     |> assign(:page_title, "Gridroom")}
+     |> assign(:page_title, "Gridroom")
+     |> assign(:show_create_node, false)
+     |> assign(:create_node_form, to_form(%{"title" => "", "description" => "", "node_type" => "discussion"}))}
   end
 
   @impl true
@@ -142,9 +145,59 @@ defmodule GridroomWeb.GridLive do
   end
 
   @impl true
+  def handle_event("open_create_node", _params, socket) do
+    if socket.assigns.logged_in do
+      {:noreply, assign(socket, :show_create_node, true)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("close_create_node", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_create_node, false)
+     |> assign(:create_node_form, to_form(%{"title" => "", "description" => "", "node_type" => "discussion"}))}
+  end
+
+  @impl true
+  def handle_event("create_node", %{"title" => title, "description" => description, "node_type" => node_type}, socket) do
+    player = socket.assigns.player
+
+    attrs = %{
+      title: String.trim(title),
+      description: String.trim(description),
+      position_x: player.x,
+      position_y: player.y,
+      node_type: node_type
+    }
+
+    case Grid.create_node(attrs) do
+      {:ok, node} ->
+        {:noreply,
+         socket
+         |> assign(:show_create_node, false)
+         |> assign(:create_node_form, to_form(%{"title" => "", "description" => "", "node_type" => "discussion"}))
+         |> push_navigate(to: "/node/#{node.id}")}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Could not create node: #{error_message(changeset)}")}
+    end
+  end
+
+  @impl true
   def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff", payload: diff}, socket) do
     users = Presence.handle_diff(socket.assigns.users, diff)
     {:noreply, assign(socket, :users, users)}
+  end
+
+  @impl true
+  def handle_info({:node_created, node}, socket) do
+    nodes = socket.assigns.nodes ++ [node]
+    {:noreply, assign(socket, :nodes, nodes)}
   end
 
   @impl true
@@ -471,6 +524,15 @@ defmodule GridroomWeb.GridLive do
           <div class="w-2 h-2 rounded-full" style={"background-color: #{@user.glyph_color};"}></div>
           <span class="ui-stat"><%= map_size(@users) + 1 %> present</span>
         </div>
+        <%= if @logged_in && !@show_create_node do %>
+          <div class="w-px h-3 bg-[#2a2522]"></div>
+          <button
+            phx-click="open_create_node"
+            class="text-[#dba76f] hover:text-[#e8b87a] text-xs transition-colors flex items-center gap-1"
+          >
+            <span class="text-lg leading-none">+</span> create node
+          </button>
+        <% end %>
       </div>
 
       <!-- UI Overlay - Top Right - Auth -->
@@ -515,6 +577,101 @@ defmodule GridroomWeb.GridLive do
           <% end %>
         </p>
       </div>
+
+      <!-- Create Node Sidebar -->
+      <%= if @show_create_node do %>
+        <div class="absolute right-0 top-0 bottom-0 w-80 bg-[#0d0b0a]/95 border-l border-[#2a2522] flex flex-col">
+          <!-- Header -->
+          <div class="p-4 border-b border-[#2a2522] flex items-center justify-between">
+            <h2 class="text-[#c4b8a8] text-sm tracking-wide uppercase">Create Node</h2>
+            <button
+              phx-click="close_create_node"
+              class="text-[#5a4f42] hover:text-[#c4b8a8] text-xl leading-none transition-colors"
+            >
+              &times;
+            </button>
+          </div>
+
+          <!-- Position indicator -->
+          <div class="px-4 py-3 border-b border-[#2a2522]/50 bg-[#1a1714]/50">
+            <p class="text-[#5a4f42] text-xs">
+              Placing at position
+              <span class="text-[#c9a962] font-mono">
+                (<%= Float.round(@player.x, 0) |> trunc %>, <%= Float.round(@player.y, 0) |> trunc %>)
+              </span>
+            </p>
+          </div>
+
+          <!-- Form -->
+          <form phx-submit="create_node" class="flex-1 flex flex-col p-4 gap-4">
+            <div>
+              <label class="block text-[#8a7d6d] text-xs uppercase tracking-wide mb-2">
+                Title <span class="text-[#d4756a]">*</span>
+              </label>
+              <input
+                type="text"
+                name="title"
+                placeholder="What's this node about?"
+                required
+                maxlength="50"
+                class="w-full bg-[#1a1714] border border-[#2a2522] rounded px-3 py-2 text-[#e8e0d5] text-sm placeholder-[#5a4f42] focus:border-[#c9a962] focus:outline-none transition-colors"
+              />
+            </div>
+
+            <div>
+              <label class="block text-[#8a7d6d] text-xs uppercase tracking-wide mb-2">
+                Description
+              </label>
+              <textarea
+                name="description"
+                placeholder="Optional details..."
+                rows="3"
+                maxlength="200"
+                class="w-full bg-[#1a1714] border border-[#2a2522] rounded px-3 py-2 text-[#e8e0d5] text-sm placeholder-[#5a4f42] focus:border-[#c9a962] focus:outline-none transition-colors resize-none"
+              ></textarea>
+            </div>
+
+            <div>
+              <label class="block text-[#8a7d6d] text-xs uppercase tracking-wide mb-2">
+                Type
+              </label>
+              <div class="grid grid-cols-2 gap-2">
+                <%= for type <- ~w(discussion question debate quiet) do %>
+                  <label class="flex items-center gap-2 p-2 rounded border border-[#2a2522] hover:border-[#5a4f42] cursor-pointer transition-colors has-[:checked]:border-[#c9a962] has-[:checked]:bg-[#c9a962]/10">
+                    <input
+                      type="radio"
+                      name="node_type"
+                      value={type}
+                      checked={type == "discussion"}
+                      class="sr-only"
+                    />
+                    <span class={"w-3 h-3 rounded-full #{node_type_class(type)}"}></span>
+                    <span class="text-[#c4b8a8] text-xs capitalize"><%= type %></span>
+                  </label>
+                <% end %>
+              </div>
+            </div>
+
+            <div class="flex-1"></div>
+
+            <div class="flex gap-2">
+              <button
+                type="button"
+                phx-click="close_create_node"
+                class="flex-1 px-4 py-2 border border-[#2a2522] rounded text-[#8a7d6d] text-sm hover:border-[#5a4f42] hover:text-[#c4b8a8] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="flex-1 px-4 py-2 bg-[#c9a962] rounded text-[#0d0b0a] text-sm font-medium hover:bg-[#dba76f] transition-colors"
+              >
+                Create
+              </button>
+            </div>
+          </form>
+        </div>
+      <% end %>
     </div>
     """
   end
@@ -579,6 +736,12 @@ defmodule GridroomWeb.GridLive do
   defp node_type_color("debate"), do: "#d4756a"
   defp node_type_color("quiet"), do: "#8b9a7d"
   defp node_type_color(_), do: "#c9a962"
+
+  defp node_type_class("discussion"), do: "bg-[#c9a962]"
+  defp node_type_class("question"), do: "bg-[#7eb8da]"
+  defp node_type_class("debate"), do: "bg-[#d4756a]"
+  defp node_type_class("quiet"), do: "bg-[#8b9a7d]"
+  defp node_type_class(_), do: "bg-[#c9a962]"
 
   # Pseudo-random positions for ambient particles (deterministic based on index)
   defp dust_position(i) do
@@ -709,5 +872,15 @@ defmodule GridroomWeb.GridLive do
     x = viewport.x - width / 2
     y = viewport.y - height / 2
     "#{x} #{y} #{width} #{height}"
+  end
+
+  defp error_message(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
+    |> Enum.map(fn {k, v} -> "#{k}: #{Enum.join(v, ", ")}" end)
+    |> Enum.join("; ")
   end
 end

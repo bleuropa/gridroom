@@ -84,6 +84,9 @@ Processing Pipeline:
 
 ## Aesthetic & Style Guide
 
+> **Primary Design Reference: Lumon Industries (Severance)**
+> Always strive for Lumon/Severance styling. When in doubt, ask: "Would this feel at home on the severed floor?" Clean, mysterious, warm undertones, purposeful shapes.
+
 ### The Severance Energy
 - Clean, almost sterile surface
 - But underneath: warm, human, mysterious
@@ -91,6 +94,7 @@ Processing Pipeline:
 - The deeper you go, the weirder it gets
 - Discovering connections feels like finding secrets
 - Lumon's MDR floor aesthetic: endless grids, colored zones, hidden depths
+- UI panels and sidebars: dark, muted, with warm amber accents
 
 ### The Tavern Energy
 - Regulars have their corners

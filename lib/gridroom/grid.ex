@@ -62,6 +62,25 @@ defmodule Gridroom.Grid do
     %Node{}
     |> Node.changeset(attrs)
     |> Repo.insert()
+    |> case do
+      {:ok, node} ->
+        broadcast_node_created(node)
+        {:ok, node}
+
+      error ->
+        error
+    end
+  end
+
+  defp broadcast_node_created(node) do
+    # Add activity info for consistency with list_nodes_with_activity
+    node_with_activity = Map.put(node, :activity, %{count: 0, level: :dormant})
+
+    Phoenix.PubSub.broadcast(
+      Gridroom.PubSub,
+      "grid:nodes",
+      {:node_created, node_with_activity}
+    )
   end
 
   def update_node(%Node{} = node, attrs) do
