@@ -7,14 +7,9 @@
 
 ## Current Focus
 
-No active task - ready to start [[T-2025-005-username-password-auth]]
-
-**Recent Progress (T-2025-004)**:
-- Camera following player during WASD
-- Player as light source (nodes dim with distance)
-- Active nodes self-illuminate
-- Atmospheric background (particles, stars, grid glows)
-- Refined node styling with type-based colors
+**Active Task**: [[T-2025-005-username-password-auth]]
+**Branch**: feat/T-2025-005-username-password-auth
+**Goal**: Simple username/password authentication without email
 
 ---
 

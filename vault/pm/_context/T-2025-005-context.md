@@ -2,7 +2,7 @@
 
 **Task**: [[T-2025-005-username-password-auth]]
 **Created**: 2025-01-15
-**Status**: Planning
+**Status**: In Progress
 
 ## Overview
 
