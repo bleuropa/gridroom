@@ -15,17 +15,17 @@
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-013-share-nodes-via-url]] - Share nodes via URL (viral growth)
-2. [[T-2025-010-enhanced-node-chat-viz]] - Enhanced chat room viz (diamond avatars)
+1. [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation (zoom out, select vs enter)
+2. [[T-2025-013-share-nodes-via-url]] - Share nodes via URL (viral growth)
 3. [[T-2025-006-node-creation-system]] - User node creation
 
 ## Backlog (Prioritized)
 
 ### High Priority (P1)
+- [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation improvements
 - [[E-2025-002-social-friends-system]] - Epic: Social & Friends System
 - [[T-2025-015-energy-reputation-system]] - Energy/Reputation system (Lumon-style moderation)
 - [[T-2025-013-share-nodes-via-url]] - Share nodes via URL
-- [[T-2025-010-enhanced-node-chat-viz]] - Enhanced chat room visualization
 - [[T-2025-006-node-creation-system]] - Node creation system
 
 ### Medium Priority (P2)
