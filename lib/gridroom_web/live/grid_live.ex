@@ -52,7 +52,7 @@ defmodule GridroomWeb.GridLive do
      |> assign(:entering_node, nil)
      |> assign(:can_enter_node, can_enter)
      |> assign(:dwelling_node, nil)
-     |> assign(:dwell_progress, 0)
+     |> assign(:dwell_progress, 0.0)
      |> assign(:page_title, "Gridroom")}
   end
 
@@ -130,21 +130,22 @@ defmodule GridroomWeb.GridLive do
 
       # Still dwelling - increment progress
       true ->
-        new_progress = socket.assigns.dwell_progress + @dwell_tick_ms
+        current = socket.assigns.dwell_progress
+        increment = @dwell_tick_ms / @dwell_time_ms * 100
+        new_progress = current + increment
 
-        if new_progress >= @dwell_time_ms do
+        if new_progress >= 100 do
           # Dwell complete - trigger entry
           {:noreply,
            socket
            |> assign(:entering_node, node_id)
            |> assign(:dwelling_node, nil)
-           |> assign(:dwell_progress, 100)
+           |> assign(:dwell_progress, 100.0)
            |> push_event("confirm_enter_node", %{node_id: node_id})}
         else
           # Continue dwelling
           Process.send_after(self(), {:dwell_tick, node_id}, @dwell_tick_ms)
-          progress_percent = round(new_progress / @dwell_time_ms * 100)
-          {:noreply, assign(socket, :dwell_progress, progress_percent)}
+          {:noreply, assign(socket, :dwell_progress, new_progress)}
         end
     end
   end
@@ -343,24 +344,27 @@ defmodule GridroomWeb.GridLive do
           <circle r="20" fill="none" stroke={@user.glyph_color} stroke-width="0.3" opacity="0.15" stroke-dasharray="2,4" class="animate-spin-slow" />
 
           <!-- Dwell progress ring -->
-          <%= if @dwelling_node && @dwell_progress > 0 do %>
-            <circle
-              r="24"
-              fill="none"
-              stroke="#dba76f"
-              stroke-width="2"
-              opacity="0.8"
-              stroke-dasharray={"#{@dwell_progress * 1.51} 151"}
-              stroke-linecap="round"
-              transform="rotate(-90)"
-              class="dwell-ring"
-            />
+          <%= if @dwelling_node do %>
+            <!-- Background ring -->
             <circle
               r="24"
               fill="none"
               stroke="#dba76f"
               stroke-width="0.5"
               opacity="0.3"
+            />
+            <!-- Progress ring - circumference is ~151 for r=24 -->
+            <circle
+              r="24"
+              fill="none"
+              stroke="#dba76f"
+              stroke-width="2.5"
+              opacity="0.9"
+              stroke-dasharray={"#{Float.round(@dwell_progress * 1.51, 1)} 151"}
+              stroke-dashoffset="0"
+              stroke-linecap="round"
+              style="transform: rotate(-90deg); transform-origin: center;"
+              class="dwell-ring"
             />
           <% end %>
         </g>
@@ -441,13 +445,13 @@ defmodule GridroomWeb.GridLive do
           Process.send_after(self(), {:dwell_tick, nearby_node.id}, @dwell_tick_ms)
           socket
           |> assign(:dwelling_node, nearby_node.id)
-          |> assign(:dwell_progress, 0)
+          |> assign(:dwell_progress, 0.0)
 
         # Left all nodes - cancel dwelling
         is_nil(nearby_node) && dwelling ->
           socket
           |> assign(:dwelling_node, nil)
-          |> assign(:dwell_progress, 0)
+          |> assign(:dwell_progress, 0.0)
 
         # Not near any node and wasn't dwelling
         true ->
