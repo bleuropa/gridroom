@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-017-resonance-presence-node-decay]]
-**Branch**: feat/T-2025-017-resonance-presence-node-decay
-**Goal**: Persistent resonance meter + toasts, node decay system
+**Active Task**: None
+**Branch**: main
+**Goal**: Ready for new task
 
 ---
 
@@ -43,9 +43,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-017-resonance-presence-node-decay]] - Resonance meter, toasts, glyph effects, node decay
 - [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation (click to select, zoom limits)
 - [[T-2025-015-energy-reputation-system]] - Resonance system with affirm/dismiss feedback
-- [[T-2025-014-user-profile-sidebar-friending]] - User profile sidebar, friending, recognition highlighting
 
 ---
 
@@ -63,6 +63,7 @@
 - **Anonymous first**: Session-based identity, optional accounts
 - **Auth without email**: Username/password only, no password reset, accounts are disposable
 - **SVG rendering**: Using SVG for grid, nodes, and user glyphs
+- **Node decay**: Inactive nodes fade (1-7d quiet, 7-14d fading, 14d+ gone), activity revives them
 
 ---
 
