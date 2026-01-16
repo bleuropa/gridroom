@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-013
-status: backlog
+status: in-progress
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
@@ -11,11 +11,11 @@ updated: 2026-01-16
 
 ## Task Details
 **Task ID**: T-2025-013-share-nodes-via-url
-**Status**: Backlog
+**Status**: In Progress
 **Priority**: P1
 **Branch**: feat/T-2025-013-share-nodes-via-url
 **Created**: 2026-01-16
-**Started**:
+**Started**: 2026-01-16
 **Completed**:
 
 ## Description

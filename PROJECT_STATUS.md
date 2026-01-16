@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-006-node-creation-system]]
-**Branch**: feat/T-2025-006-node-creation-system
-**Goal**: Allow auth users to create new topic nodes on the grid
+**Active Task**: [[T-2025-013-share-nodes-via-url]]
+**Branch**: feat/T-2025-013-share-nodes-via-url
+**Goal**: Enable sharing node URLs for viral growth
 
 ---
 
