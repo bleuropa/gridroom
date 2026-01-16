@@ -26,11 +26,11 @@ defmodule Gridroom.Grok.NodeGenerator do
   Returns `{:ok, created_nodes}` or `{:error, reason}`.
 
   Options:
-  - `:max_nodes` - Maximum number of nodes to create (default: 3)
+  - `:max_nodes` - Maximum number of nodes to create (default: 7)
   - `:dry_run` - If true, returns what would be created without creating (default: false)
   """
   def generate_trend_nodes(opts \\ []) do
-    max_nodes = Keyword.get(opts, :max_nodes, 3)
+    max_nodes = Keyword.get(opts, :max_nodes, 7)
     dry_run = Keyword.get(opts, :dry_run, false)
     skip_refinement = Keyword.get(opts, :skip_refinement, false)
 

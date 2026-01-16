@@ -37,7 +37,7 @@ defmodule Gridroom.Grok.TrendFetcher do
     |> String.split(~r/\n(?=\d+\.\s)/)
     |> Enum.map(&parse_trend_block/1)
     |> Enum.reject(&is_nil/1)
-    |> Enum.take(7)
+    |> Enum.take(12)
   end
 
   def parse_trends(_), do: []

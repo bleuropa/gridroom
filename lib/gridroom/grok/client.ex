@@ -79,10 +79,27 @@ defmodule Gridroom.Grok.Client do
   """
   def fetch_trends do
     prompt = """
-    What are the most interesting and conversation-worthy topics trending on X right now?
-    Focus on topics that would spark thoughtful discussion - technology, culture, ideas, events.
-    Avoid celebrity gossip, sports scores, or purely promotional content.
-    List 5-7 topics with a brief description of why each is interesting.
+    Find 10-12 diverse, conversation-worthy topics currently trending on X.
+
+    REQUIRED DIVERSITY - Include topics from EACH of these categories:
+    - Technology & AI (2-3 topics): new tools, debates about tech, innovations
+    - Culture & Society (2-3 topics): social trends, lifestyle, generational discussions
+    - Ideas & Philosophy (1-2 topics): thought-provoking debates, ethical questions
+    - Science & Discovery (1-2 topics): research, space, environment, health
+    - Creative & Arts (1-2 topics): music, film, design, internet culture
+    - Politics & World Events (1-2 topics): policy debates, global affairs
+
+    AVOID:
+    - Celebrity gossip and drama
+    - Sports scores and game results
+    - Purely promotional/marketing content
+    - Repetitive variations of the same story
+
+    For each topic, provide:
+    1. A clear, concise title
+    2. A brief description of why it sparks interesting discussion
+
+    List exactly 10-12 topics covering the categories above.
     """
 
     chat(prompt, tools: ["x_search"])
