@@ -250,8 +250,8 @@ defmodule GridroomWeb.GridLive do
         <rect width="10000" height="10000" x="-5000" y="-5000" fill="url(#grid-minor)" />
         <rect width="10000" height="10000" x="-5000" y="-5000" fill="url(#grid-major)" />
 
-        <!-- Ambient center glow -->
-        <ellipse cx="0" cy="0" rx="400" ry="300" fill="url(#ambient-glow)" class="animate-breathe" />
+        <!-- Player light source - illuminates nearby area -->
+        <ellipse cx={@player.x} cy={@player.y} rx="250" ry="200" fill="url(#ambient-glow)" class="animate-breathe" />
 
         <!-- Connection lines between nearby nodes -->
         <g class="connections" opacity="0.4">
@@ -271,11 +271,15 @@ defmodule GridroomWeb.GridLive do
         <!-- Topic nodes -->
         <%= for {node, index} <- Enum.with_index(@nodes) do %>
           <% activity = Map.get(node, :activity, %{level: :dormant, count: 0}) %>
+          <% proximity_brightness = node_proximity_brightness(@player, node) %>
+          <% activity_brightness = activity_base_brightness(activity.level) %>
+          <% total_brightness = min(1.0, proximity_brightness + activity_brightness) %>
           <g
             class={"node node-activity-#{activity.level}"}
             data-node-id={node.id}
             transform={"translate(#{node.position_x}, #{node.position_y})"}
             style={"animation-delay: #{rem(index, 5) * -0.8}s;"}
+            opacity={total_brightness}
           >
             <!-- Activity rings - more rings = more activity -->
             <%= if activity.level == :buzzing do %>
@@ -497,6 +501,34 @@ defmodule GridroomWeb.GridLive do
   defp node_type_color("debate"), do: "#d4756a"
   defp node_type_color("quiet"), do: "#8b9a7d"
   defp node_type_color(_), do: "#c9a962"
+
+  # Player light source - nodes illuminated by proximity
+  @player_light_radius 300
+  @player_light_falloff 150  # Distance where light starts to fade
+
+  defp node_proximity_brightness(player, node) do
+    dist = distance_to_node(player, node)
+
+    cond do
+      dist < @player_light_falloff ->
+        # Full illumination close to player
+        0.9
+      dist < @player_light_radius ->
+        # Linear falloff from full to minimum
+        falloff_range = @player_light_radius - @player_light_falloff
+        falloff_progress = (dist - @player_light_falloff) / falloff_range
+        0.9 - (0.7 * falloff_progress)  # 0.9 -> 0.2
+      true ->
+        # Outside light radius - very dim
+        0.15
+    end
+  end
+
+  # Activity-based self-illumination (adds to proximity brightness)
+  defp activity_base_brightness(:dormant), do: 0.0
+  defp activity_base_brightness(:quiet), do: 0.1
+  defp activity_base_brightness(:active), do: 0.3
+  defp activity_base_brightness(:buzzing), do: 0.5
 
   # Activity-based styling
   defp activity_stroke_width(:dormant), do: "0.3"
