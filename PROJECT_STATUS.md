@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-014-user-profile-sidebar-friending]]
-**Branch**: feat/T-2025-014-user-profile-sidebar
-**Goal**: User profile sidebar with activity history and friending
+**Active Task**: [[T-2025-015-energy-reputation-system]]
+**Branch**: feat/T-2025-015-energy-reputation-system
+**Goal**: Design and implement Lumon-style energy/reputation system
 
 ---
 
@@ -45,9 +45,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-014-user-profile-sidebar-friending]] - User profile sidebar, friending, recognition highlighting
 - [[T-2025-005-username-password-auth]] - Username/password auth (no email)
 - [[T-2025-004-grid-ux-polish]] - Camera, lighting, activity viz
-- Dwell mechanic with visual progress ring
 
 ---
 
