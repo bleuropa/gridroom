@@ -45,18 +45,22 @@ defmodule Gridroom.Grok.Client do
       timeout = Keyword.get(opts, :timeout, @default_timeout)
 
       # Use /responses endpoint for search tools, /chat/completions otherwise
+      has_search = has_search_tools?(tools)
+      Logger.info("Grok tools=#{inspect(tools)}, has_search_tools=#{has_search}")
+
       {endpoint, body} =
-        if has_search_tools?(tools) do
+        if has_search do
           {"/responses", build_responses_body(prompt, tools)}
         else
           {"/chat/completions", build_request_body(prompt, tools)}
         end
 
-      Logger.info("Grok request to #{endpoint}: #{inspect(body, limit: 500)}")
+      Logger.info("Grok request to #{endpoint}")
 
       case make_request(endpoint, body, timeout) do
         {:ok, %{status: 200, body: body}} ->
-          Logger.info("Grok API success, response length: #{byte_size(inspect(body))}")
+          response_keys = if is_map(body), do: Map.keys(body), else: "not_a_map"
+          Logger.info("Grok API success, response keys: #{inspect(response_keys)}")
           parse_response(body)
 
         {:ok, %{status: status, body: body}} ->
@@ -79,27 +83,27 @@ defmodule Gridroom.Grok.Client do
   """
   def fetch_trends do
     prompt = """
-    Find 10-12 diverse, conversation-worthy topics currently trending on X.
+    Search X for trending topics and return 10-12 DIVERSE conversation starters.
 
-    REQUIRED DIVERSITY - Include topics from EACH of these categories:
-    - Technology & AI (2-3 topics): new tools, debates about tech, innovations
-    - Culture & Society (2-3 topics): social trends, lifestyle, generational discussions
-    - Ideas & Philosophy (1-2 topics): thought-provoking debates, ethical questions
-    - Science & Discovery (1-2 topics): research, space, environment, health
-    - Creative & Arts (1-2 topics): music, film, design, internet culture
-    - Politics & World Events (1-2 topics): policy debates, global affairs
+    CRITICAL: You MUST use the search tool to find REAL trending content. Do NOT make up topics.
 
-    AVOID:
-    - Celebrity gossip and drama
-    - Sports scores and game results
-    - Purely promotional/marketing content
-    - Repetitive variations of the same story
+    MANDATORY DIVERSITY - You MUST include topics from ALL these categories (1-2 each):
+    1. TECHNOLOGY (not just AI): gadgets, apps, internet culture, cybersecurity
+    2. SCIENCE: space, health, environment, discoveries
+    3. CULTURE: music, movies, TV shows, books, art
+    4. SOCIETY: lifestyle trends, generational topics, relationships
+    5. POLITICS/WORLD: current events, policy debates (be balanced)
+    6. PHILOSOPHY/IDEAS: debates, ethical questions, thought experiments
 
-    For each topic, provide:
-    1. A clear, concise title
-    2. A brief description of why it sparks interesting discussion
+    DO NOT return multiple topics about the same subject (e.g., no 3 AI ethics topics).
+    Each topic should be from a DIFFERENT domain.
 
-    List exactly 10-12 topics covering the categories above.
+    AVOID: Celebrity gossip, sports scores, marketing/promotional content.
+
+    FORMAT each topic as:
+    N. **Title**: Brief description of why it's interesting for discussion
+
+    Return exactly 10-12 topics. Diversity is REQUIRED - do not cluster on any single theme.
     """
 
     chat(prompt, tools: ["x_search"])

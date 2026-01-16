@@ -32,12 +32,20 @@ defmodule Gridroom.Grok.TrendFetcher do
   2. **Another Topic**: Another description [[3]](url)
   """
   def parse_trends(content) when is_binary(content) do
+    Logger.info("Parsing trends from content (#{String.length(content)} chars)")
+
     # Split by numbered items (1. 2. 3. etc) to handle multi-line entries
-    content
-    |> String.split(~r/\n(?=\d+\.\s)/)
-    |> Enum.map(&parse_trend_block/1)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.take(12)
+    blocks = String.split(content, ~r/\n(?=\d+\.\s)/)
+    Logger.info("Split into #{length(blocks)} blocks")
+
+    parsed =
+      blocks
+      |> Enum.map(&parse_trend_block/1)
+      |> Enum.reject(&is_nil/1)
+
+    Logger.info("Successfully parsed #{length(parsed)} trends from #{length(blocks)} blocks")
+
+    parsed |> Enum.take(12)
   end
 
   def parse_trends(_), do: []
