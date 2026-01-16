@@ -7,9 +7,19 @@ defmodule GridroomWeb.NodeLive do
   def mount(%{"id" => id}, session, socket) do
     node = Grid.get_node!(id)
 
-    # Get or create user from session
-    session_id = session["_csrf_token"] || Ecto.UUID.generate()
-    {:ok, user} = Accounts.get_or_create_user(session_id)
+    # Check for logged-in user first, then fall back to anonymous session
+    user =
+      case session["user_id"] do
+        nil ->
+          # Anonymous user - create from session token
+          session_id = session["_csrf_token"] || Ecto.UUID.generate()
+          {:ok, user} = Accounts.get_or_create_user(session_id)
+          user
+
+        user_id ->
+          # Logged-in user
+          Accounts.get_user(user_id)
+      end
 
     # Subscribe to messages for this node
     if connected?(socket) do

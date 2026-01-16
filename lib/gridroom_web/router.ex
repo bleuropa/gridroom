@@ -19,6 +19,15 @@ defmodule GridroomWeb.Router do
 
     live "/", GridLive, :index
     live "/node/:id", NodeLive, :show
+
+    # Auth routes
+    live "/register", UserRegistrationLive, :new
+    live "/login", UserLoginLive, :new
+
+    # Session handling
+    post "/register", UserSessionController, :register
+    post "/login", UserSessionController, :create
+    delete "/logout", UserSessionController, :delete
   end
 
   # Other scopes may use custom stacks.

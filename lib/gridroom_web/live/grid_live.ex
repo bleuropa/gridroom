@@ -11,9 +11,19 @@ defmodule GridroomWeb.GridLive do
 
   @impl true
   def mount(params, session, socket) do
-    # Get or create user from session
-    session_id = session["_csrf_token"] || Ecto.UUID.generate()
-    {:ok, user} = Accounts.get_or_create_user(session_id)
+    # Check for logged-in user first, then fall back to anonymous session
+    user =
+      case session["user_id"] do
+        nil ->
+          # Anonymous user - create from session token
+          session_id = session["_csrf_token"] || Ecto.UUID.generate()
+          {:ok, user} = Accounts.get_or_create_user(session_id)
+          user
+
+        user_id ->
+          # Logged-in user
+          Accounts.get_user(user_id)
+      end
 
     # Subscribe to presence updates
     if connected?(socket) do
@@ -45,6 +55,7 @@ defmodule GridroomWeb.GridLive do
     {:ok,
      socket
      |> assign(:user, user)
+     |> assign(:logged_in, user && user.username != nil)
      |> assign(:nodes, nodes)
      |> assign(:player, player_pos)
      |> assign(:viewport, %{x: player_pos.x, y: player_pos.y, zoom: 1.0})
@@ -462,9 +473,30 @@ defmodule GridroomWeb.GridLive do
         </div>
       </div>
 
-      <!-- UI Overlay - Top Right -->
-      <div class="ui-overlay absolute top-6 right-6 flex items-center gap-3">
-        <span class="ui-stat"><%= Float.round(@viewport.zoom * 100, 0) |> trunc %>%</span>
+      <!-- UI Overlay - Top Right - Auth -->
+      <div class="ui-overlay absolute top-6 right-6 flex items-center gap-4">
+        <span class="ui-stat text-[#5a4f42]"><%= Float.round(@viewport.zoom * 100, 0) |> trunc %>%</span>
+        <div class="w-px h-4 bg-[#2a2522]"></div>
+        <%= if @logged_in do %>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+              <svg width="16" height="16" viewBox="-10 -10 20 20">
+                <.user_glyph shape={@user.glyph_shape} color={@user.glyph_color} />
+              </svg>
+              <span class="text-[#c4b8a8] text-sm"><%= @user.username %></span>
+            </div>
+            <.link href={~p"/logout"} method="delete" class="text-[#5a4f42] hover:text-[#c4b8a8] text-xs transition-colors">
+              logout
+            </.link>
+          </div>
+        <% else %>
+          <div class="flex items-center gap-3">
+            <span class="text-[#5a4f42] text-sm">guest</span>
+            <.link navigate={~p"/login"} class="text-[#dba76f] hover:text-[#e8b87a] text-xs transition-colors">
+              sign in
+            </.link>
+          </div>
+        <% end %>
       </div>
 
       <!-- UI Overlay - Top Left - Title -->
@@ -564,8 +596,8 @@ defmodule GridroomWeb.GridLive do
   end
 
   # Player light source - nodes illuminated by proximity
-  @player_light_radius 300
-  @player_light_falloff 150  # Distance where light starts to fade
+  @player_light_radius 350
+  @player_light_falloff 180  # Distance where light starts to fade
 
   defp node_proximity_brightness(player, node) do
     dist = distance_to_node(player, node)
@@ -575,20 +607,20 @@ defmodule GridroomWeb.GridLive do
         # Full illumination close to player
         1.0
       dist < @player_light_radius ->
-        # Linear falloff from full to minimum
+        # Linear falloff from full to base
         falloff_range = @player_light_radius - @player_light_falloff
         falloff_progress = (dist - @player_light_falloff) / falloff_range
-        1.0 - (0.6 * falloff_progress)  # 1.0 -> 0.4
+        1.0 - (0.4 * falloff_progress)  # 1.0 -> 0.6
       true ->
-        # Outside light radius - still visible but dim
-        0.3
+        # Outside light radius - visible but dimmer
+        0.5
     end
   end
 
   # Activity-based self-illumination (adds to proximity brightness)
-  defp activity_base_brightness(:dormant), do: 0.0
-  defp activity_base_brightness(:quiet), do: 0.1
-  defp activity_base_brightness(:active), do: 0.3
+  defp activity_base_brightness(:dormant), do: 0.15
+  defp activity_base_brightness(:quiet), do: 0.2
+  defp activity_base_brightness(:active), do: 0.35
   defp activity_base_brightness(:buzzing), do: 0.5
 
   # Text color based on brightness - darker when far, brighter when close

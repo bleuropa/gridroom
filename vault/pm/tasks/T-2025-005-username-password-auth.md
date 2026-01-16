@@ -1,22 +1,22 @@
 ---
 type: task
 id: T-2025-005
-status: in-progress
+status: done
 priority: p1
 created: 2025-01-15
-updated: 2025-01-15
+updated: 2026-01-16
 ---
 
 # Task: Username/Password Authentication (No Email)
 
 ## Task Details
 **Task ID**: T-2025-005-username-password-auth
-**Status**: Backlog
+**Status**: Done
 **Priority**: P1
 **Branch**: feat/T-2025-005-username-password-auth
 **Created**: 2025-01-15
-**Started**:
-**Completed**:
+**Started**: 2025-01-15
+**Completed**: 2026-01-16
 
 ## Description
 Add simple username/password authentication to Gridroom without requiring email. This aligns with the product philosophy of pseudonymous, low-friction identity. Users can pick any username and create an account instantly - no verification step, no email collection.
@@ -28,24 +28,26 @@ Key decisions:
 - Use `mix phx.gen.auth` as starting point, then customize
 
 ## Acceptance Criteria
-- [ ] Users can register with username + password only
-- [ ] Users can log in with username + password
-- [ ] No email field in registration/login forms
-- [ ] Existing session-based users can optionally create accounts
-- [ ] User glyph (shape/color) persists across sessions when logged in
-- [ ] Graceful handling of duplicate usernames
+- [x] Users can register with username + password only
+- [x] Users can log in with username + password
+- [x] No email field in registration/login forms
+- [x] Existing session-based users can optionally create accounts
+- [x] User glyph (shape/color) persists across sessions when logged in
+- [x] Graceful handling of duplicate usernames
 
 ## Checklist
-- [ ] Run `mix phx.gen.auth` with customizations
-- [ ] Remove email field from User schema
-- [ ] Update registration form (username + password only)
-- [ ] Update login form (username + password only)
-- [ ] Connect auth to existing Accounts context
-- [ ] Migrate existing anonymous users to auth system
-- [ ] Add login/register UI to grid view
-- [ ] Test registration flow
-- [ ] Test login flow
-- [ ] Test session persistence
+- [x] Add bcrypt_elixir dependency for password hashing
+- [x] Create migration for username/hashed_password fields
+- [x] Make session_id nullable for registered users
+- [x] Update User schema with registration_changeset
+- [x] Add authenticate_user/2 to Accounts context
+- [x] Create UserRegistrationLive
+- [x] Create UserLoginLive
+- [x] Create UserSessionController for session management
+- [x] Add login/register UI to grid view
+- [x] Test registration flow
+- [x] Test login flow
+- [x] Auto-login after registration
 
 ## Technical Details
 ### Approach
@@ -63,12 +65,12 @@ Key decisions:
 - New migration for auth fields
 
 ### Testing Required
-- [ ] Registration with valid username/password
-- [ ] Registration with duplicate username (should fail gracefully)
-- [ ] Login with correct credentials
-- [ ] Login with wrong credentials
-- [ ] Session persistence across page loads
-- [ ] Logout functionality
+- [x] Registration with valid username/password
+- [x] Registration with duplicate username (should fail gracefully)
+- [x] Login with correct credentials
+- [x] Login with wrong credentials
+- [x] Session persistence across page loads
+- [x] Logout functionality
 
 ## Dependencies
 ### Blocked By
