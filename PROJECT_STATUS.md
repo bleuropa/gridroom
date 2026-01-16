@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: None
-**Branch**: main
-**Goal**: —
+**Active Task**: [[T-2025-017-resonance-presence-node-decay]]
+**Branch**: feat/T-2025-017-resonance-presence-node-decay
+**Goal**: Persistent resonance meter + toasts, node decay system
 
 ---
 
