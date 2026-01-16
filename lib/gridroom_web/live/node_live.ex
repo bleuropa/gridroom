@@ -44,8 +44,9 @@ defmodule GridroomWeb.NodeLive do
       Connections.record_visit(user, id)
     end
 
-    # Load messages and current presence
+    # Load messages, highlighted messages, and current presence
     messages = Grid.list_messages_for_node(id, limit: 100)
+    highlights = Grid.list_top_affirmed_messages(id, min_affirmations: 2, limit: 3)
     present_users = if connected?(socket), do: presence_to_map(Presence.list_users_in_node(id)), else: %{}
 
     # Load remembered users for recognition highlighting
@@ -60,6 +61,7 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:node, node)
      |> assign(:user, user)
      |> assign(:messages, messages)
+     |> assign(:highlights, highlights)
      |> assign(:present_users, present_users)
      |> assign(:remembered_user_ids, remembered_user_ids)
      |> assign(:message_form, to_form(%{"content" => ""}))
@@ -311,7 +313,7 @@ defmodule GridroomWeb.NodeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-[#0a0908] flex flex-col room-entrance relative" phx-hook="RoomEntrance" id="room-container">
+    <div class="h-screen bg-[#0a0908] flex flex-col room-entrance relative overflow-hidden" phx-hook="RoomEntrance" id="room-container">
       <!-- Subtle ambient gradient overlay -->
       <div class="absolute inset-0 bg-gradient-to-b from-[#0d0b0a] via-transparent to-[#0d0b0a]/80 pointer-events-none"></div>
       <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(201,169,98,0.02)_0%,_transparent_70%)] pointer-events-none"></div>
@@ -363,10 +365,25 @@ defmodule GridroomWeb.NodeLive do
         </div>
       <% end %>
 
+      <!-- Highlights section - most affirmed messages -->
+      <%= if length(@highlights) > 0 do %>
+        <div class="relative z-10 border-b border-[#1a1714] bg-[#0d0b0a]/80 px-8 py-4 flex-shrink-0">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="text-[#3a3330] text-[9px] uppercase tracking-[0.15em]">Highlights</span>
+            <div class="flex-1 h-px bg-gradient-to-r from-[#2a2522] to-transparent"></div>
+          </div>
+          <div class="flex gap-3 overflow-x-auto scrollbar-hide">
+            <%= for highlight <- @highlights do %>
+              <.highlight_card message={highlight} />
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
       <!-- Messages area -->
       <div
         id="messages"
-        class="relative z-10 flex-1 overflow-y-auto px-8 py-6"
+        class="relative z-10 flex-1 overflow-y-auto px-8 py-6 min-h-0"
         phx-hook="ScrollToBottom"
       >
         <%= if Enum.empty?(@messages) do %>
@@ -958,6 +975,51 @@ defmodule GridroomWeb.NodeLive do
   defp resonance_tooltip_color(_, true, false), do: "text-[#c9a962]"
   defp resonance_tooltip_color(_, _, true), do: "text-[#c9a962]"
   defp resonance_tooltip_color(_, _, _), do: "text-[#8a7d6d]"
+
+  # Highlight card for top affirmed messages
+  attr :message, :map, required: true
+  defp highlight_card(assigns) do
+    ~H"""
+    <div class="flex-shrink-0 w-72 bg-[#141210] border border-[#c9a962]/20 p-3 hover:border-[#c9a962]/40 transition-colors">
+      <!-- Header with user and affirm count -->
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <svg width="16" height="16" viewBox="-8 -8 16 16">
+            <%= case @message.user && @message.user.glyph_shape do %>
+              <% "circle" -> %>
+                <circle r="5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
+              <% "triangle" -> %>
+                <polygon points="0,-6 5.2,3 -5.2,3" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
+              <% "square" -> %>
+                <rect x="-4" y="-4" width="8" height="8" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
+              <% "diamond" -> %>
+                <polygon points="0,-5 5,0 0,5 -5,0" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
+              <% "hexagon" -> %>
+                <polygon points="4,0 2,3.5 -2,3.5 -4,0 -2,-3.5 2,-3.5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
+              <% "pentagon" -> %>
+                <polygon points="0,-5 4.8,-1.5 3,4 -3,4 -4.8,-1.5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
+              <% _ -> %>
+                <circle r="5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
+            <% end %>
+          </svg>
+          <span class="text-[10px] uppercase tracking-wider text-[#5a4f42]">
+            <%= (@message.user && @message.user.username) || "Anonymous" %>
+          </span>
+        </div>
+        <div class="flex items-center gap-1 text-[#c9a962]">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          <span class="text-[10px] uppercase tracking-wider"><%= @message.affirm_count %></span>
+        </div>
+      </div>
+      <!-- Message content (truncated) -->
+      <p class="text-[#c4b8a8] text-xs leading-relaxed line-clamp-2">
+        <%= @message.content %>
+      </p>
+    </div>
+    """
+  end
 
   # Sources display component for trend-generated nodes
   attr :sources, :list, required: true

@@ -161,6 +161,45 @@ defmodule Gridroom.Grid do
     |> Enum.reverse()
   end
 
+  @doc """
+  Lists top affirmed messages for a node.
+  Returns messages with at least min_affirmations affirmations, sorted by count.
+  """
+  def list_top_affirmed_messages(node_id, opts \\ []) do
+    min_affirmations = Keyword.get(opts, :min_affirmations, 2)
+    limit = Keyword.get(opts, :limit, 3)
+
+    # Query to count affirmations per message
+    affirm_counts =
+      from(t in Gridroom.Resonance.Transaction,
+        where: t.reason == "affirm_received" and not is_nil(t.message_id),
+        join: m in Message, on: m.id == t.message_id,
+        where: m.node_id == ^node_id,
+        group_by: t.message_id,
+        having: count(t.id) >= ^min_affirmations,
+        select: {t.message_id, count(t.id)},
+        order_by: [desc: count(t.id)],
+        limit: ^limit
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    if map_size(affirm_counts) == 0 do
+      []
+    else
+      message_ids = Map.keys(affirm_counts)
+
+      Message
+      |> where([m], m.id in ^message_ids)
+      |> preload(:user)
+      |> Repo.all()
+      |> Enum.map(fn msg ->
+        Map.put(msg, :affirm_count, Map.get(affirm_counts, msg.id, 0))
+      end)
+      |> Enum.sort_by(& &1.affirm_count, :desc)
+    end
+  end
+
   def create_message(attrs \\ %{}) do
     %Message{}
     |> Message.changeset(attrs)
