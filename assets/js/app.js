@@ -331,6 +331,14 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
+// Clear input event handler
+window.addEventListener("phx:clear_input", (e) => {
+  const input = document.getElementById(e.detail.id)
+  if (input) {
+    input.value = ""
+  }
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 
