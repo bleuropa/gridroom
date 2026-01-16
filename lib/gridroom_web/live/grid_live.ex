@@ -285,20 +285,20 @@ defmodule GridroomWeb.GridLive do
             <circle
               r="32"
               fill="none"
-              stroke="#4a4540"
-              stroke-width="0.5"
-              stroke-dasharray="2,6"
-              opacity={0.3 * total_brightness}
+              stroke="#5a534a"
+              stroke-width="0.8"
+              stroke-dasharray="3,5"
+              opacity="0.5"
             />
 
             <!-- Secondary ring - ethereal outer boundary -->
             <circle
               r="38"
               fill="none"
-              stroke="#3a3530"
-              stroke-width="0.3"
-              stroke-dasharray="1,8"
-              opacity={0.2 * total_brightness}
+              stroke="#4a4540"
+              stroke-width="0.4"
+              stroke-dasharray="1,6"
+              opacity="0.3"
             />
 
             <!-- Activity rings - warm pulses for active nodes -->
@@ -522,15 +522,15 @@ defmodule GridroomWeb.GridLive do
     cond do
       dist < @player_light_falloff ->
         # Full illumination close to player
-        0.9
+        1.0
       dist < @player_light_radius ->
         # Linear falloff from full to minimum
         falloff_range = @player_light_radius - @player_light_falloff
         falloff_progress = (dist - @player_light_falloff) / falloff_range
-        0.9 - (0.7 * falloff_progress)  # 0.9 -> 0.2
+        1.0 - (0.6 * falloff_progress)  # 1.0 -> 0.4
       true ->
-        # Outside light radius - very dim
-        0.15
+        # Outside light radius - still visible but dim
+        0.3
     end
   end
 
@@ -556,11 +556,6 @@ defmodule GridroomWeb.GridLive do
   defp activity_glow_opacity(:buzzing), do: "0.25"
   defp activity_glow_opacity(_), do: "0"
 
-  defp node_opacity(:dormant), do: "0.5"
-  defp node_opacity(:quiet), do: "0.7"
-  defp node_opacity(:active), do: "0.85"
-  defp node_opacity(:buzzing), do: "1.0"
-
   defp truncate_title(title, max_length) do
     if String.length(title) > max_length do
       String.slice(title, 0, max_length - 1) <> "…"
@@ -572,10 +567,8 @@ defmodule GridroomWeb.GridLive do
   # Node shape component
   attr :node, :map, required: true
   attr :activity_level, :atom, default: :dormant
+  # Node shapes - no opacity here, controlled by parent group
   defp node_shape(assigns) do
-    opacity = node_opacity(assigns.activity_level)
-    assigns = assign(assigns, :opacity, opacity)
-
     ~H"""
     <a href={~p"/node/#{@node.id}"} class="block">
       <%= case @node.glyph_shape do %>
@@ -583,14 +576,12 @@ defmodule GridroomWeb.GridLive do
           <polygon
             points="20,0 40,12 40,36 20,48 0,36 0,12"
             fill={@node.glyph_color}
-            opacity={@opacity}
             filter="url(#node-glow)"
           />
         <% "circle" -> %>
           <circle
             r="20"
             fill={@node.glyph_color}
-            opacity={@opacity}
             filter="url(#node-glow)"
           />
         <% "square" -> %>
@@ -598,14 +589,12 @@ defmodule GridroomWeb.GridLive do
             x="-18" y="-18"
             width="36" height="36"
             fill={@node.glyph_color}
-            opacity={@opacity}
             filter="url(#node-glow)"
           />
         <% _ -> %>
           <circle
             r="20"
             fill={@node.glyph_color}
-            opacity={@opacity}
             filter="url(#node-glow)"
           />
       <% end %>
