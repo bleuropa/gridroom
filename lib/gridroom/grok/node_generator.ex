@@ -12,11 +12,11 @@ defmodule Gridroom.Grok.NodeGenerator do
   require Logger
 
   # Minimum distance between nodes to avoid visual overlap
-  @min_node_distance 100
+  @min_node_distance 120
 
   # Placement parameters for golden angle spiral
-  @base_radius 120
-  @radius_increment 35
+  @base_radius 150
+  @radius_increment 45
   @golden_angle 137.5077 * :math.pi() / 180  # ~2.399 radians
 
   @doc """
