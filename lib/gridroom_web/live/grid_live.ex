@@ -87,34 +87,48 @@ defmodule GridroomWeb.GridLive do
   def handle_event("zoom", %{"delta" => delta, "x" => _x, "y" => _y}, socket) do
     viewport = socket.assigns.viewport
     zoom_factor = if delta > 0, do: 0.9, else: 1.1
-    # Allow zooming out to 0.1 (10%) to see all nodes at once
-    new_zoom = max(0.1, min(4.0, viewport.zoom * zoom_factor))
+    # Limit zoom out to 0.2 (20%) to preserve sense of discovery
+    new_zoom = max(0.2, min(4.0, viewport.zoom * zoom_factor))
     {:noreply, assign(socket, :viewport, %{viewport | zoom: new_zoom})}
   end
 
+  # Neighborhood radius - how far to show when zooming out
+  @neighborhood_radius 600
+
   @impl true
   def handle_event("zoom_to_fit", _params, socket) do
-    # Zoom out to show all nodes
+    # Zoom out to show nearby nodes (neighborhood view, not everything)
+    player = socket.assigns.player
     nodes = socket.assigns.nodes
-    if Enum.empty?(nodes) do
-      {:noreply, socket}
-    else
-      # Calculate bounding box of all nodes
-      xs = Enum.map(nodes, & &1.position_x)
-      ys = Enum.map(nodes, & &1.position_y)
-      min_x = Enum.min(xs) - 100
-      max_x = Enum.max(xs) + 100
-      min_y = Enum.min(ys) - 100
-      max_y = Enum.max(ys) + 100
 
-      # Calculate required zoom to fit all nodes
+    # Find nodes within the neighborhood radius
+    nearby_nodes = Enum.filter(nodes, fn node ->
+      distance_to_node(player, node) <= @neighborhood_radius
+    end)
+
+    if Enum.empty?(nearby_nodes) do
+      # No nearby nodes - just zoom out a bit to show more area
+      viewport = socket.assigns.viewport
+      new_zoom = max(0.3, viewport.zoom * 0.5)
+      {:noreply, assign(socket, :viewport, %{viewport | zoom: new_zoom})}
+    else
+      # Calculate bounding box of nearby nodes + player position
+      xs = [player.x | Enum.map(nearby_nodes, & &1.position_x)]
+      ys = [player.y | Enum.map(nearby_nodes, & &1.position_y)]
+      min_x = Enum.min(xs) - 80
+      max_x = Enum.max(xs) + 80
+      min_y = Enum.min(ys) - 80
+      max_y = Enum.max(ys) + 80
+
+      # Calculate required zoom to fit nearby nodes
       width_needed = max_x - min_x
       height_needed = max_y - min_y
       zoom_x = 1000 / width_needed
       zoom_y = 600 / height_needed
-      new_zoom = max(0.1, min(zoom_x, zoom_y) * 0.9)  # 90% fit with padding
+      # Limit zoom out to 0.25 minimum to maintain some mystery
+      new_zoom = max(0.25, min(1.0, min(zoom_x, zoom_y) * 0.85))
 
-      # Center on the nodes
+      # Center on the neighborhood
       center_x = (min_x + max_x) / 2
       center_y = (min_y + max_y) / 2
 
@@ -647,7 +661,7 @@ defmodule GridroomWeb.GridLive do
             phx-click="zoom_to_fit"
             class="text-[#5a4f42] hover:text-[#c9a962] text-[10px] uppercase tracking-wide transition-colors border border-[#2a2522] hover:border-[#c9a962]/40 px-2 py-1"
           >
-            View All
+            Nearby
           </button>
         </div>
         <p class="text-xs leading-relaxed opacity-60">
