@@ -272,6 +272,18 @@ Hooks.ScrollToBottom = {
   }
 }
 
+// Copy to clipboard hook
+Hooks.CopyToClipboard = {
+  mounted() {
+    this.el.addEventListener('click', () => {
+      const text = this.el.dataset.copyText
+      if (text && navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+      }
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,

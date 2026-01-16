@@ -35,7 +35,10 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:user, user)
      |> assign(:messages, messages)
      |> assign(:message_form, to_form(%{"content" => ""}))
-     |> assign(:page_title, node.title)}
+     |> assign(:page_title, node.title)
+     |> assign(:og_title, "#{node.title} - Gridroom")
+     |> assign(:og_description, node.description || "Join this conversation at Gridroom")
+     |> assign(:show_copied_toast, false)}
   end
 
   @impl true
@@ -59,6 +62,18 @@ defmodule GridroomWeb.NodeLive do
   def handle_event("send_message", _params, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("copy_share_url", _params, socket) do
+    # The actual copy happens in JS, we just show the toast
+    Process.send_after(self(), :hide_copied_toast, 2000)
+    {:noreply, assign(socket, :show_copied_toast, true)}
+  end
+
+  @impl true
+  def handle_info(:hide_copied_toast, socket) do
+    {:noreply, assign(socket, :show_copied_toast, false)}
+  end
+
+  @impl true
   def handle_info({:new_message, message}, socket) do
     messages = socket.assigns.messages ++ [message]
     {:noreply, assign(socket, :messages, messages)}
@@ -79,10 +94,31 @@ defmodule GridroomWeb.NodeLive do
           <h1 class="text-xl font-medium text-text-primary"><%= @node.title %></h1>
           <p class="text-sm text-text-muted"><%= @node.description %></p>
         </div>
-        <div class="ml-auto flex items-center gap-2">
+        <div class="ml-auto flex items-center gap-3">
+          <button
+            id="share-button"
+            phx-click="copy_share_url"
+            phx-hook="CopyToClipboard"
+            data-copy-text={url(~p"/node/#{@node.id}")}
+            class="flex items-center gap-2 px-3 py-1.5 text-sm text-text-muted hover:text-text-primary border border-grid-line hover:border-accent-warm rounded-lg transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+            </svg>
+            Share
+          </button>
           <.node_type_badge type={@node.node_type} />
         </div>
       </header>
+
+      <!-- Copied toast -->
+      <%= if @show_copied_toast do %>
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <div class="bg-accent-warm text-grid-base px-4 py-2 rounded-lg shadow-lg text-sm font-medium">
+            Link copied to clipboard
+          </div>
+        </div>
+      <% end %>
 
       <!-- Messages -->
       <div
