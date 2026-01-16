@@ -3,10 +3,11 @@ type: task
 id: T-2025-015
 story:
 epic: E-2025-002
-status: backlog
+status: in-progress
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
+started: 2026-01-16
 ---
 
 # Task: Energy/Reputation System (Lumon-style)
