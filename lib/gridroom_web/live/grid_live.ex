@@ -173,11 +173,12 @@ defmodule GridroomWeb.GridLive do
 
   @impl true
   def handle_event("enter_node", %{"id" => node_id}, socket) do
-    # Trigger the entry animation
+    # Trigger the entry animation via JS
     {:noreply,
      socket
      |> assign(:entering_node, node_id)
-     |> push_event("entering_node", %{node_id: node_id})}
+     |> assign(:selected_node, nil)
+     |> push_event("confirm_enter_node", %{node_id: node_id})}
   end
 
   @impl true
@@ -188,7 +189,8 @@ defmodule GridroomWeb.GridLive do
         {:noreply,
          socket
          |> assign(:entering_node, node.id)
-         |> push_event("entering_node", %{node_id: node.id})}
+         |> assign(:selected_node, nil)
+         |> push_event("confirm_enter_node", %{node_id: node.id})}
     end
   end
 
