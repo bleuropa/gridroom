@@ -355,6 +355,46 @@ body {
   animation: ember-float 3s ease-in-out infinite;
 }
 
+/* ============================================
+   Ambient Background Animations
+   ============================================ */
+
+/* Slow drifting for dust motes */
+@keyframes dust-drift {
+  0% { opacity: 0.1; }
+  25% { opacity: 0.3; }
+  50% { opacity: 0.15; }
+  75% { opacity: 0.25; }
+  100% { opacity: 0.1; }
+}
+
+.animate-dust {
+  animation: dust-drift 8s ease-in-out infinite;
+}
+
+/* Twinkling for star specs */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.1; }
+  20% { opacity: 0.5; }
+  40% { opacity: 0.2; }
+  60% { opacity: 0.7; }
+  80% { opacity: 0.3; }
+}
+
+.animate-twinkle {
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+/* Slow pulse for grid intersection points */
+@keyframes grid-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+}
+
+.animate-grid-pulse {
+  animation: grid-pulse 6s ease-in-out infinite;
+}
+
 /* Activity core glow pulse - opacity only (no transform to avoid SVG origin issues) */
 .activity-core {
   animation: activity-pulse 2s ease-in-out infinite;

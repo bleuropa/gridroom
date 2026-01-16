@@ -250,8 +250,52 @@ defmodule GridroomWeb.GridLive do
         <rect width="10000" height="10000" x="-5000" y="-5000" fill="url(#grid-minor)" />
         <rect width="10000" height="10000" x="-5000" y="-5000" fill="url(#grid-major)" />
 
+        <!-- Grid intersection glow points -->
+        <g class="grid-intersections">
+          <%= for x <- -5..5, y <- -4..4 do %>
+            <circle
+              cx={x * 100}
+              cy={y * 100}
+              r="1.5"
+              fill="#8b7355"
+              class="animate-grid-pulse"
+              style={"animation-delay: #{:erlang.phash2({x, y}, 10) * -0.6}s;"}
+            />
+          <% end %>
+        </g>
+
+        <!-- Ambient dust motes - scattered particles -->
+        <g class="dust-motes">
+          <%= for i <- 1..30 do %>
+            <% {dx, dy} = dust_position(i) %>
+            <circle
+              cx={dx}
+              cy={dy}
+              r={0.8 + rem(i, 3) * 0.4}
+              fill="#a89880"
+              class="animate-dust"
+              style={"animation-delay: #{i * -0.5}s;"}
+            />
+          <% end %>
+        </g>
+
+        <!-- Twinkling star specs -->
+        <g class="star-specs">
+          <%= for i <- 1..20 do %>
+            <% {sx, sy} = star_position(i) %>
+            <circle
+              cx={sx}
+              cy={sy}
+              r={0.5 + rem(i, 2) * 0.3}
+              fill="#d4c8b8"
+              class="animate-twinkle"
+              style={"animation-delay: #{i * -0.3}s;"}
+            />
+          <% end %>
+        </g>
+
         <!-- Player light source - illuminates nearby area -->
-        <ellipse cx={@player.x} cy={@player.y} rx="250" ry="200" fill="url(#ambient-glow)" class="animate-breathe" />
+        <ellipse cx={@player.x} cy={@player.y} rx="280" ry="220" fill="url(#ambient-glow)" class="animate-breathe" />
 
         <!-- Connection lines between nearby nodes -->
         <g class="connections" opacity="0.4">
@@ -281,54 +325,48 @@ defmodule GridroomWeb.GridLive do
             style={"animation-delay: #{rem(index, 5) * -0.8}s;"}
             opacity={total_brightness}
           >
-            <!-- Base ring - subtle dashed orbit -->
-            <circle
-              r="32"
-              fill="none"
-              stroke="#5a534a"
-              stroke-width="0.8"
-              stroke-dasharray="3,5"
-              opacity="0.5"
-            />
+            <!-- Soft backdrop glow -->
+            <circle r="28" fill={node_type_color(node.node_type)} opacity="0.08" filter="url(#node-glow)" />
 
-            <!-- Secondary ring - ethereal outer boundary -->
+            <!-- Outer orbit ring - thin, elegant -->
             <circle
-              r="38"
+              r="30"
               fill="none"
-              stroke="#4a4540"
-              stroke-width="0.4"
-              stroke-dasharray="1,6"
-              opacity="0.3"
+              stroke={node_type_color(node.node_type)}
+              stroke-width="0.5"
+              stroke-dasharray="2,8"
+              opacity="0.4"
+              class="animate-breathe"
             />
 
             <!-- Activity rings - warm pulses for active nodes -->
             <%= if activity.level == :buzzing do %>
-              <circle r="48" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.5" opacity="0.2" class="animate-pulse-ring" />
-              <circle r="42" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.6" opacity="0.25" class="animate-pulse-ring" style="animation-delay: -0.4s;" />
+              <circle r="40" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.6" opacity="0.25" class="animate-pulse-ring" />
+              <circle r="35" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.5" opacity="0.2" class="animate-pulse-ring" style="animation-delay: -0.5s;" />
             <% end %>
             <%= if activity.level in [:active, :buzzing] do %>
-              <circle r="36" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.4" opacity="0.3" class="animate-pulse-ring" style="animation-delay: -0.8s;" />
+              <circle r="32" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.4" opacity="0.3" class="animate-pulse-ring" style="animation-delay: -1s;" />
             <% end %>
 
             <!-- Node shape with link -->
             <.node_shape node={node} color={node_type_color(node.node_type)} />
 
-            <!-- Activity indicator - warm ember glow instead of dots -->
+            <!-- Inner glow for active nodes -->
             <%= if activity.level in [:active, :buzzing] do %>
-              <!-- Inner warmth glow -->
               <circle
-                r={activity_inner_glow_radius(activity.level)}
+                r="12"
                 fill={node_type_color(node.node_type)}
-                opacity={activity_glow_opacity(activity.level)}
+                opacity={if activity.level == :buzzing, do: "0.4", else: "0.25"}
                 filter="url(#node-glow)"
                 class="activity-core"
               />
             <% end %>
+
+            <!-- Floating embers for buzzing nodes -->
             <%= if activity.level == :buzzing do %>
-              <!-- Particle-like floating embers -->
-              <circle cx="15" cy="-12" r="1.5" fill="#dba76f" opacity="0.6" class="animate-ember" style="animation-delay: 0s;" />
-              <circle cx="-12" cy="10" r="1" fill="#dba76f" opacity="0.5" class="animate-ember" style="animation-delay: -0.5s;" />
-              <circle cx="8" cy="18" r="1.2" fill="#dba76f" opacity="0.4" class="animate-ember" style="animation-delay: -1s;" />
+              <circle cx="18" cy="-14" r="1.2" fill={node_type_color(node.node_type)} opacity="0.5" class="animate-ember" style="animation-delay: 0s;" />
+              <circle cx="-15" cy="12" r="1" fill={node_type_color(node.node_type)} opacity="0.4" class="animate-ember" style="animation-delay: -0.6s;" />
+              <circle cx="10" cy="20" r="0.8" fill={node_type_color(node.node_type)} opacity="0.3" class="animate-ember" style="animation-delay: -1.2s;" />
             <% end %>
 
             <!-- Label - brightness responds to proximity -->
@@ -510,6 +548,21 @@ defmodule GridroomWeb.GridLive do
   defp node_type_color("quiet"), do: "#8b9a7d"
   defp node_type_color(_), do: "#c9a962"
 
+  # Pseudo-random positions for ambient particles (deterministic based on index)
+  defp dust_position(i) do
+    # Spread dust across visible area using simple hash
+    x = rem(i * 137, 800) - 400
+    y = rem(i * 97, 600) - 300
+    {x, y}
+  end
+
+  defp star_position(i) do
+    # Different spread pattern for stars
+    x = rem(i * 173, 900) - 450
+    y = rem(i * 113, 700) - 350
+    {x, y}
+  end
+
   # Player light source - nodes illuminated by proximity
   @player_light_radius 300
   @player_light_falloff 150  # Distance where light starts to fade
@@ -544,15 +597,6 @@ defmodule GridroomWeb.GridLive do
   defp text_color_for_brightness(brightness) when brightness >= 0.4, do: "#8a7d6d"
   defp text_color_for_brightness(brightness) when brightness >= 0.25, do: "#5a4f42"
   defp text_color_for_brightness(_brightness), do: "#3a3530"
-
-  # Glow-based activity indicators
-  defp activity_inner_glow_radius(:active), do: "25"
-  defp activity_inner_glow_radius(:buzzing), do: "30"
-  defp activity_inner_glow_radius(_), do: "0"
-
-  defp activity_glow_opacity(:active), do: "0.15"
-  defp activity_glow_opacity(:buzzing), do: "0.25"
-  defp activity_glow_opacity(_), do: "0"
 
   defp truncate_title(title, max_length) do
     if String.length(title) > max_length do
