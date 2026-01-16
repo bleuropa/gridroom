@@ -32,21 +32,62 @@ defmodule Gridroom.Grid do
       |> Repo.all()
       |> Map.new()
 
-    # Get all nodes with creator and attach activity level
+    # Get all nodes with creator and attach activity level + decay state
     Node
     |> preload(:created_by)
     |> Repo.all()
     |> Enum.map(fn node ->
       message_count = Map.get(activity_map, node.id, 0)
       activity_level = calculate_activity_level(message_count)
-      Map.put(node, :activity, %{count: message_count, level: activity_level})
+      decay_state = calculate_decay_state(node)
+
+      node
+      |> Map.put(:activity, %{count: message_count, level: activity_level})
+      |> Map.put(:decay, decay_state)
     end)
+    |> Enum.filter(fn node -> node.decay != :gone end)
   end
 
   defp calculate_activity_level(count) when count == 0, do: :dormant
   defp calculate_activity_level(count) when count < 3, do: :quiet
   defp calculate_activity_level(count) when count < 10, do: :active
   defp calculate_activity_level(_count), do: :buzzing
+
+  # Decay thresholds in days
+  @fresh_threshold_days 1
+  @quiet_threshold_days 7
+  @fading_threshold_days 14
+
+  @doc """
+  Calculate the decay state of a node based on last_activity_at.
+  Returns :fresh, :quiet, :fading, or :gone
+  """
+  def calculate_decay_state(%Node{last_activity_at: nil}), do: :fresh
+  def calculate_decay_state(%Node{last_activity_at: last_activity}) do
+    days_since = DateTime.diff(DateTime.utc_now(), last_activity, :day)
+
+    cond do
+      days_since < @fresh_threshold_days -> :fresh
+      days_since < @quiet_threshold_days -> :quiet
+      days_since < @fading_threshold_days -> :fading
+      true -> :gone
+    end
+  end
+
+  @doc """
+  Calculate the decay state for a node-like map (used with activity map).
+  """
+  def calculate_decay_state_for_map(%{last_activity_at: nil}), do: :fresh
+  def calculate_decay_state_for_map(%{last_activity_at: last_activity}) do
+    days_since = DateTime.diff(DateTime.utc_now(), last_activity, :day)
+
+    cond do
+      days_since < @fresh_threshold_days -> :fresh
+      days_since < @quiet_threshold_days -> :quiet
+      days_since < @fading_threshold_days -> :fading
+      true -> :gone
+    end
+  end
 
   def list_nodes_in_bounds(min_x, max_x, min_y, max_y) do
     Node
@@ -60,6 +101,9 @@ defmodule Gridroom.Grid do
   def get_node(id), do: Repo.get(Node, id)
 
   def create_node(attrs \\ %{}) do
+    # Set last_activity_at to now if not provided
+    attrs = Map.put_new(attrs, :last_activity_at, DateTime.utc_now() |> DateTime.truncate(:second))
+
     %Node{}
     |> Node.changeset(attrs)
     |> Repo.insert()
@@ -76,12 +120,16 @@ defmodule Gridroom.Grid do
   defp broadcast_node_created(node) do
     # Preload creator and add activity info for consistency with list_nodes_with_activity
     node = Repo.preload(node, :created_by)
-    node_with_activity = Map.put(node, :activity, %{count: 0, level: :dormant})
+
+    node_with_info =
+      node
+      |> Map.put(:activity, %{count: 0, level: :dormant})
+      |> Map.put(:decay, :fresh)
 
     Phoenix.PubSub.broadcast(
       Gridroom.PubSub,
       "grid:nodes",
-      {:node_created, node_with_activity}
+      {:node_created, node_with_info}
     )
   end
 
@@ -120,11 +168,24 @@ defmodule Gridroom.Grid do
     |> case do
       {:ok, message} ->
         message = Repo.preload(message, :user)
+        # Update node's last_activity_at to keep it fresh
+        touch_node_activity(message.node_id)
         broadcast_message(message)
         {:ok, message}
       error ->
         error
     end
+  end
+
+  @doc """
+  Update a node's last_activity_at timestamp to now.
+  Called when messages are sent or users visit.
+  """
+  def touch_node_activity(node_id) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    from(n in Node, where: n.id == ^node_id)
+    |> Repo.update_all(set: [last_activity_at: now])
   end
 
   defp broadcast_message(message) do

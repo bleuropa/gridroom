@@ -69,3 +69,19 @@ Two related features to make the grid feel more alive:
 - Should node creators get a warning before their node decays?
 - Can a node be "revived" with activity, or once fading always fading?
 - Should system/seed nodes be exempt from decay?
+
+## Session Notes
+
+### 2026-01-16 Session
+- Implemented persistent resonance meter (bottom-left of grid) with level colors and state text
+- Added toast notifications for resonance changes via user-specific PubSub topic
+- Player glyph now reflects resonance level (depleted=dim/desaturated, elevated/radiant=aura)
+- Created migration for `last_activity_at` on nodes, decay calculated on load
+- Nodes filtered by decay state: fresh/quiet/fading shown, "gone" (14+ days) hidden
+- Decay labels show time-based text: "3d ago" for quiet, "gone in 4d" for fading
+- Decided: nodes can be revived with activity (touching resets last_activity_at)
+
+### Open Questions Resolved
+- Nodes ARE revived with activity - sending a message updates last_activity_at
+- System/seed nodes not yet exempt - could add later if needed
+

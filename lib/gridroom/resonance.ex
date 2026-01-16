@@ -153,10 +153,11 @@ defmodule Gridroom.Resonance do
             updated_user
           end)
 
-          # Broadcast resonance change to the node
+          # Broadcast resonance change to the node and to the user personally
           case result do
             {:ok, updated_user} ->
               broadcast_resonance_change(updated_user, message.node_id)
+              broadcast_personal_resonance_change(updated_user, amount, reason)
               {:ok, updated_user}
 
             error ->
@@ -178,6 +179,18 @@ defmodule Gridroom.Resonance do
       Gridroom.PubSub,
       "node:#{node_id}",
       {:resonance_changed, user}
+    )
+  end
+
+  @doc """
+  Broadcasts resonance change to the user's personal topic.
+  Used to update UI across all their sessions (grid view, etc).
+  """
+  def broadcast_personal_resonance_change(%User{} = user, amount, reason) do
+    Phoenix.PubSub.broadcast(
+      Gridroom.PubSub,
+      "user:#{user.id}:resonance",
+      {:resonance_changed, %{user: user, amount: amount, reason: reason}}
     )
   end
 

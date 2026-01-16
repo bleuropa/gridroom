@@ -1,7 +1,7 @@
 defmodule GridroomWeb.GridLive do
   use GridroomWeb, :live_view
 
-  alias Gridroom.{Grid, Accounts}
+  alias Gridroom.{Grid, Accounts, Resonance}
   alias GridroomWeb.Presence
 
   # Node entry constants
@@ -25,10 +25,11 @@ defmodule GridroomWeb.GridLive do
           Accounts.get_user(user_id)
       end
 
-    # Subscribe to presence and node updates
+    # Subscribe to presence, node updates, and personal resonance changes
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "grid:presence")
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "grid:nodes")
+      Phoenix.PubSub.subscribe(Gridroom.PubSub, "user:#{user.id}:resonance")
       Presence.track_user(self(), user)
     end
 
@@ -69,7 +70,8 @@ defmodule GridroomWeb.GridLive do
      |> assign(:page_title, "Gridroom")
      |> assign(:show_create_node, false)
      |> assign(:create_node_form, to_form(%{"title" => "", "description" => "", "node_type" => "discussion"}))
-     |> assign(:selected_node, nil)}
+     |> assign(:selected_node, nil)
+     |> assign(:resonance_toasts, [])}
   end
 
   @impl true
@@ -277,6 +279,31 @@ defmodule GridroomWeb.GridLive do
   end
 
   @impl true
+  def handle_info({:resonance_changed, %{user: updated_user, amount: amount, reason: reason}}, socket) do
+    # Update user data and show toast
+    toast = %{
+      id: System.unique_integer([:positive]),
+      amount: amount,
+      reason: reason,
+      timestamp: System.system_time(:second)
+    }
+
+    # Schedule toast removal after 4 seconds
+    Process.send_after(self(), {:remove_toast, toast.id}, 4000)
+
+    {:noreply,
+     socket
+     |> assign(:user, updated_user)
+     |> assign(:resonance_toasts, [toast | socket.assigns.resonance_toasts])}
+  end
+
+  @impl true
+  def handle_info({:remove_toast, toast_id}, socket) do
+    toasts = Enum.reject(socket.assigns.resonance_toasts, &(&1.id == toast_id))
+    {:noreply, assign(socket, :resonance_toasts, toasts)}
+  end
+
+  @impl true
   def handle_info({:dwell_tick, node_id}, socket) do
     dwelling = socket.assigns.dwelling_node
     entering = socket.assigns.entering_node
@@ -455,11 +482,13 @@ defmodule GridroomWeb.GridLive do
         <!-- Topic nodes -->
         <%= for {node, index} <- Enum.with_index(@nodes) do %>
           <% activity = Map.get(node, :activity, %{level: :dormant, count: 0}) %>
+          <% decay = Map.get(node, :decay, :fresh) %>
           <% proximity_brightness = node_proximity_brightness(@player, node) %>
           <% activity_brightness = activity_base_brightness(activity.level) %>
-          <% total_brightness = min(1.0, proximity_brightness + activity_brightness) %>
+          <% decay_opacity = decay_opacity(decay) %>
+          <% total_brightness = min(1.0, proximity_brightness + activity_brightness) * decay_opacity %>
           <g
-            class={"node node-activity-#{activity.level}"}
+            class={"node node-activity-#{activity.level} node-decay-#{decay}"}
             data-node-id={node.id}
             transform={"translate(#{node.position_x}, #{node.position_y})"}
             style={"animation-delay: #{rem(index, 5) * -0.8}s;"}
@@ -468,15 +497,15 @@ defmodule GridroomWeb.GridLive do
             <!-- Soft backdrop glow -->
             <circle r="28" fill={node_type_color(node.node_type)} opacity="0.08" filter="url(#node-glow)" />
 
-            <!-- Outer orbit ring - thin, elegant -->
+            <!-- Outer orbit ring - thin, elegant (dashed when fading) -->
             <circle
               r="30"
               fill="none"
               stroke={node_type_color(node.node_type)}
-              stroke-width="0.5"
-              stroke-dasharray="2,8"
-              opacity="0.4"
-              class="animate-breathe"
+              stroke-width={if decay == :fading, do: "0.8", else: "0.5"}
+              stroke-dasharray={if decay == :fading, do: "3,5", else: "2,8"}
+              opacity={if decay == :fading, do: "0.5", else: "0.4"}
+              class={if decay == :fading, do: "animate-pulse", else: "animate-breathe"}
             />
 
             <!-- Activity rings - warm pulses for active nodes -->
@@ -531,6 +560,18 @@ defmodule GridroomWeb.GridLive do
                 by <%= node.created_by.username %>
               </text>
             <% end %>
+            <!-- Decay state indicator (only for quiet/fading) -->
+            <%= if decay in [:quiet, :fading] do %>
+              <text
+                y={if node.created_by && node.created_by.username, do: "66", else: "54"}
+                text-anchor="middle"
+                class="node-decay-label pointer-events-none"
+                fill={decay_label_color(decay)}
+                style="font-size: 8px; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.05em;"
+              >
+                <%= decay_time_text(node.last_activity_at, decay) %>
+              </text>
+            <% end %>
           </g>
         <% end %>
 
@@ -548,17 +589,35 @@ defmodule GridroomWeb.GridLive do
         <% end %>
 
         <!-- Current user (you) - at player position -->
+        <% resonance_level = Resonance.resonance_level(@user) %>
         <g
           id="current-user"
-          class="user-glyph-self"
+          class={"user-glyph-self resonance-#{resonance_level}"}
           transform={"translate(#{@player.x}, #{@player.y})"}
-          filter="url(#self-glow)"
+          filter={player_glyph_filter(resonance_level)}
+          opacity={player_glyph_opacity(resonance_level)}
         >
-          <.user_glyph shape={@user.glyph_shape} color={@user.glyph_color} pulse={true} />
+          <.user_glyph shape={@user.glyph_shape} color={player_glyph_color(@user.glyph_color, resonance_level)} pulse={resonance_level != :depleted} />
           <!-- Subtle pulse ring -->
-          <circle r="16" fill="none" stroke={@user.glyph_color} stroke-width="0.5" opacity="0.3" class="animate-pulse-glow" />
+          <circle r="16" fill="none" stroke={player_glyph_color(@user.glyph_color, resonance_level)} stroke-width="0.5" opacity="0.3" class="animate-pulse-glow" />
           <!-- Movement indicator -->
-          <circle r="20" fill="none" stroke={@user.glyph_color} stroke-width="0.3" opacity="0.15" stroke-dasharray="2,4" class="animate-spin-slow" />
+          <circle r="20" fill="none" stroke={player_glyph_color(@user.glyph_color, resonance_level)} stroke-width="0.3" opacity="0.15" stroke-dasharray="2,4" class="animate-spin-slow" />
+          <!-- Radiant/Elevated aura -->
+          <%= if resonance_level in [:radiant, :elevated] do %>
+            <circle
+              r={if resonance_level == :radiant, do: "28", else: "24"}
+              fill="none"
+              stroke={if resonance_level == :radiant, do: "#c9a962", else: "#8b9a7d"}
+              stroke-width={if resonance_level == :radiant, do: "2", else: "1"}
+              opacity={if resonance_level == :radiant, do: "0.4", else: "0.25"}
+              filter="url(#node-glow)"
+              class="animate-breathe"
+            />
+          <% end %>
+          <!-- Depleted warning indicator -->
+          <%= if resonance_level == :depleted do %>
+            <circle r="22" fill="none" stroke="#d4756a" stroke-width="1" opacity="0.5" stroke-dasharray="2,4" class="animate-pulse" />
+          <% end %>
 
           <!-- Dwell progress ring -->
           <%= if @dwelling_node do %>
@@ -603,6 +662,9 @@ defmodule GridroomWeb.GridLive do
 
       <!-- UI Overlay - Bottom Left -->
       <div class="ui-overlay absolute bottom-6 left-6 flex items-center gap-4">
+        <!-- Resonance meter -->
+        <.resonance_meter user={@user} />
+        <div class="w-px h-6 bg-[#2a2522]"></div>
         <div class="flex items-center gap-2">
           <div class="w-2 h-2 rounded-full bg-[#c9a962] animate-pulse"></div>
           <span class="ui-stat"><%= length(@nodes) %> nodes</span>
@@ -620,6 +682,13 @@ defmodule GridroomWeb.GridLive do
           >
             <span class="text-lg leading-none">+</span> create node
           </button>
+        <% end %>
+      </div>
+
+      <!-- Resonance change toasts -->
+      <div class="fixed top-20 right-6 flex flex-col gap-2 z-50">
+        <%= for toast <- @resonance_toasts do %>
+          <.resonance_toast toast={toast} />
         <% end %>
       </div>
 
@@ -783,7 +852,8 @@ defmodule GridroomWeb.GridLive do
   # Node preview panel component
   defp node_preview_panel(assigns) do
     activity = Map.get(assigns.node, :activity, %{level: :dormant, count: 0})
-    assigns = assign(assigns, :activity, activity)
+    decay = Map.get(assigns.node, :decay, :fresh)
+    assigns = assigns |> assign(:activity, activity) |> assign(:decay, decay)
 
     ~H"""
     <div class="absolute bottom-24 left-1/2 -translate-x-1/2 w-96 bg-[#0d0b0a]/95 border border-[#2a2522] backdrop-blur-sm animate-fade-in">
@@ -816,6 +886,10 @@ defmodule GridroomWeb.GridLive do
           <%= if @activity.count > 0 do %>
             <span class="text-[#5a4f42]">·</span>
             <span class="text-[#8a7d6d]"><%= @activity.count %> messages this hour</span>
+          <% end %>
+          <%= if @decay in [:quiet, :fading] do %>
+            <span class="text-[#5a4f42]">·</span>
+            <span class={decay_preview_class(@decay)}><%= decay_time_text(@node.last_activity_at, @decay) %></span>
           <% end %>
         </div>
 
@@ -963,6 +1037,95 @@ defmodule GridroomWeb.GridLive do
   defp activity_base_brightness(:active), do: 0.35
   defp activity_base_brightness(:buzzing), do: 0.5
 
+  # Decay-based opacity multiplier
+  defp decay_opacity(:fresh), do: 1.0
+  defp decay_opacity(:quiet), do: 0.85
+  defp decay_opacity(:fading), do: 0.5
+  defp decay_opacity(_), do: 1.0
+
+  # Decay label text (simple)
+  defp decay_label_text(:quiet), do: "quiet"
+  defp decay_label_text(:fading), do: "fading..."
+  defp decay_label_text(_), do: ""
+
+  # Decay time-based text
+  defp decay_time_text(nil, decay), do: decay_label_text(decay)
+  defp decay_time_text(last_activity_at, decay) do
+    days_ago = DateTime.diff(DateTime.utc_now(), last_activity_at, :day)
+
+    case decay do
+      :quiet ->
+        # Quiet = 1-7 days, fading starts at 7
+        days_until_fading = max(0, 7 - days_ago)
+        if days_until_fading > 0 do
+          "#{days_ago}d ago"
+        else
+          "fading soon"
+        end
+
+      :fading ->
+        # Fading = 7-14 days, gone at 14
+        days_until_gone = max(0, 14 - days_ago)
+        if days_until_gone > 0 do
+          "gone in #{days_until_gone}d"
+        else
+          "disappearing..."
+        end
+
+      _ ->
+        ""
+    end
+  end
+
+  # Decay label color
+  defp decay_label_color(:quiet), do: "#5a4f42"
+  defp decay_label_color(:fading), do: "#d4756a"
+  defp decay_label_color(_), do: "#3a3530"
+
+  # Decay preview panel class
+  defp decay_preview_class(:quiet), do: "text-[#5a4f42]"
+  defp decay_preview_class(:fading), do: "text-[#d4756a]"
+  defp decay_preview_class(_), do: "text-[#5a4f42]"
+
+  # Player glyph resonance effects
+  defp player_glyph_filter(:depleted), do: "url(#user-glow)"
+  defp player_glyph_filter(:low), do: "url(#user-glow)"
+  defp player_glyph_filter(:normal), do: "url(#self-glow)"
+  defp player_glyph_filter(:elevated), do: "url(#self-glow)"
+  defp player_glyph_filter(:radiant), do: "url(#self-glow)"
+  defp player_glyph_filter(_), do: "url(#self-glow)"
+
+  defp player_glyph_opacity(:depleted), do: 0.6
+  defp player_glyph_opacity(:low), do: 0.75
+  defp player_glyph_opacity(:normal), do: 1.0
+  defp player_glyph_opacity(:elevated), do: 1.0
+  defp player_glyph_opacity(:radiant), do: 1.0
+  defp player_glyph_opacity(_), do: 1.0
+
+  defp player_glyph_color(base_color, :depleted), do: desaturate_color(base_color)
+  defp player_glyph_color(base_color, _), do: base_color
+
+  # Simple desaturation - blend toward gray
+  defp desaturate_color(hex) when is_binary(hex) do
+    # Parse hex color
+    hex = String.trim_leading(hex, "#")
+    case Integer.parse(hex, 16) do
+      {value, ""} when byte_size(hex) == 6 ->
+        r = Bitwise.band(Bitwise.bsr(value, 16), 0xFF)
+        g = Bitwise.band(Bitwise.bsr(value, 8), 0xFF)
+        b = Bitwise.band(value, 0xFF)
+        # Blend toward gray (desaturate by 50%)
+        gray = div(r + g + b, 3)
+        r2 = div(r + gray, 2)
+        g2 = div(g + gray, 2)
+        b2 = div(b + gray, 2)
+        "##{Integer.to_string(r2, 16) |> String.pad_leading(2, "0")}#{Integer.to_string(g2, 16) |> String.pad_leading(2, "0")}#{Integer.to_string(b2, 16) |> String.pad_leading(2, "0")}"
+      _ ->
+        hex
+    end
+  end
+  defp desaturate_color(color), do: color
+
   # Text color based on brightness - darker when far, brighter when close
   defp text_color_for_brightness(brightness) when brightness >= 0.8, do: "#e8e0d5"
   defp text_color_for_brightness(brightness) when brightness >= 0.6, do: "#c4b8a8"
@@ -1086,4 +1249,103 @@ defmodule GridroomWeb.GridLive do
     |> Enum.map(fn {k, v} -> "#{k}: #{Enum.join(v, ", ")}" end)
     |> Enum.join("; ")
   end
+
+  # Resonance meter component for grid UI
+  attr :user, :map, required: true
+  defp resonance_meter(assigns) do
+    level = Resonance.resonance_level(assigns.user)
+    state = Resonance.resonance_state(assigns.user)
+    percentage = Resonance.resonance_percentage(assigns.user)
+
+    assigns =
+      assigns
+      |> assign(:level, level)
+      |> assign(:state, state)
+      |> assign(:percentage, percentage)
+
+    ~H"""
+    <div class="flex items-center gap-3">
+      <!-- Resonance bar -->
+      <div class="relative">
+        <div class="w-24 h-1.5 bg-[#1a1714] overflow-hidden">
+          <div
+            class={[
+              "h-full transition-all duration-500",
+              resonance_bar_class(@level)
+            ]}
+            style={"width: #{@percentage}%"}
+          >
+          </div>
+        </div>
+        <!-- Level indicator dots -->
+        <div class="absolute top-0 left-0 right-0 flex justify-between -mt-0.5">
+          <div class="w-0.5 h-2.5 bg-[#2a2522]"></div>
+          <div class="w-0.5 h-2.5 bg-[#2a2522]" style="left: 30%"></div>
+          <div class="w-0.5 h-2.5 bg-[#2a2522]" style="left: 70%"></div>
+          <div class="w-0.5 h-2.5 bg-[#2a2522]"></div>
+        </div>
+      </div>
+      <!-- State text -->
+      <span class={["text-[10px] uppercase tracking-wider", resonance_text_class(@level)]}>
+        <%= @state %>
+      </span>
+      <!-- Warning indicator for low resonance -->
+      <%= if @level in [:depleted, :low] do %>
+        <div class="w-1.5 h-1.5 rounded-full bg-[#d4756a] animate-pulse"></div>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp resonance_bar_class(:depleted), do: "bg-[#d4756a]"
+  defp resonance_bar_class(:low), do: "bg-[#c9a962]/60"
+  defp resonance_bar_class(:normal), do: "bg-[#8a7d6d]"
+  defp resonance_bar_class(:elevated), do: "bg-[#8b9a7d]"
+  defp resonance_bar_class(:radiant), do: "bg-gradient-to-r from-[#c9a962] to-[#dba76f]"
+  defp resonance_bar_class(_), do: "bg-[#5a4f42]"
+
+  defp resonance_text_class(:depleted), do: "text-[#d4756a]"
+  defp resonance_text_class(:low), do: "text-[#c9a962]/70"
+  defp resonance_text_class(:normal), do: "text-[#5a4f42]"
+  defp resonance_text_class(:elevated), do: "text-[#8b9a7d]"
+  defp resonance_text_class(:radiant), do: "text-[#c9a962]"
+  defp resonance_text_class(_), do: "text-[#5a4f42]"
+
+  # Resonance change toast component
+  attr :toast, :map, required: true
+  defp resonance_toast(assigns) do
+    is_positive = assigns.toast.amount > 0
+    reason_text = format_reason(assigns.toast.reason)
+
+    assigns =
+      assigns
+      |> assign(:is_positive, is_positive)
+      |> assign(:reason_text, reason_text)
+
+    ~H"""
+    <div class={[
+      "px-4 py-2 border backdrop-blur-sm animate-slide-in-right",
+      if(@is_positive,
+        do: "bg-[#8b9a7d]/20 border-[#8b9a7d]/40 text-[#8b9a7d]",
+        else: "bg-[#d4756a]/20 border-[#d4756a]/40 text-[#d4756a]"
+      )
+    ]}>
+      <div class="flex items-center gap-2 text-xs">
+        <span class="font-medium">
+          <%= if @is_positive, do: "+", else: "" %><%= @toast.amount %>
+        </span>
+        <span class="opacity-70"><%= @reason_text %></span>
+      </div>
+    </div>
+    """
+  end
+
+  defp format_reason(:affirm_received), do: "Someone affirmed you"
+  defp format_reason(:dismiss_received), do: "Someone dismissed you"
+  defp format_reason(:message_replied), do: "Your message got a reply"
+  defp format_reason(:node_visited), do: "Someone visited your node"
+  defp format_reason(:remembered), do: "Someone remembered you"
+  defp format_reason(reason) when is_atom(reason), do: reason |> Atom.to_string() |> String.replace("_", " ")
+  defp format_reason(reason) when is_binary(reason), do: String.replace(reason, "_", " ")
+  defp format_reason(_), do: "Resonance changed"
 end
