@@ -1,0 +1,75 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mix compile:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(cat:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(mix ecto.gen.migration:*)",
+      "Bash(mix ecto.migrate:*)",
+      "Bash(grep:*)",
+      "Bash(mix deps.get:*)",
+      "Bash(xargs ls:*)",
+      "Bash(find:*)",
+      "Bash(mix run:*)",
+      "Bash(timeout 10 mix phx.server:*)",
+      "Bash(timeout 30 mix run:*)",
+      "Bash(ls:*)",
+      "WebSearch",
+      "Bash(node --check:*)",
+      "Bash(asdf list:*)",
+      "WebFetch(domain:www.substack.com)",
+      "WebFetch(domain:beforetherobotswin.substack.com)",
+      "Bash(asdf current:*)",
+      "Bash(asdf install:*)",
+      "Bash(asdf reshim:*)",
+      "Bash(mix clean:*)",
+      "Bash(mix deps.clean:*)",
+      "Bash(mix test:*)",
+      "Bash(mix format:*)",
+      "Bash(mix credo:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)",
+      "Read(./.env.production)",
+      "Read(./.env.development)",
+      "Read(./.env.test)",
+      "Read(./**/*.log)",
+      "Read(./**/*.dump)",
+      "Read(./config/dev.secret.exs)",
+      "Read(./config/prod.secret.exs)"
+    ]
+  },
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/pre-compaction.sh",
+            "statusMessage": "Saving context before compaction..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/user-prompt-submit.sh",
+            "statusMessage": "Checking task context..."
+          }
+        ]
+      }
+    ]
+  }
+}
