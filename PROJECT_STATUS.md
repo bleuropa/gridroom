@@ -23,7 +23,7 @@
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-004-grid-ux-polish]] - Camera following, fog of war, activity visualization
+1. [[T-2025-005-username-password-auth]] - Simple username/password auth (no email)
 2. AI content seeding with xAI/Grok
 3. Deploy to production
 
