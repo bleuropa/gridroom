@@ -120,18 +120,18 @@ Hooks.GridCanvas = {
       }
     })
 
-    // Handle node entry animation - Severance style
+    // Handle node entry animation - Fluid ripple transition
     this.handleEvent("entering_node", ({node_id}) => {
       // Create the transition overlay
       const overlay = document.createElement('div')
-      overlay.className = 'severance-transition'
+      overlay.className = 'fluid-transition'
+
+      // Multiple ripple layers for depth
       overlay.innerHTML = `
-        <div class="severance-lines">
-          <div class="severance-line"></div>
-          <div class="severance-line"></div>
-          <div class="severance-line"></div>
-        </div>
-        <div class="severance-flash"></div>
+        <div class="fluid-ripple fluid-ripple-1"></div>
+        <div class="fluid-ripple fluid-ripple-2"></div>
+        <div class="fluid-ripple fluid-ripple-3"></div>
+        <div class="fluid-fade"></div>
       `
       document.body.appendChild(overlay)
 
@@ -143,7 +143,7 @@ Hooks.GridCanvas = {
       // Navigate after animation
       setTimeout(() => {
         this.pushEvent('navigate_to_node', { id: node_id })
-      }, 1200)
+      }, 1000)
     })
   },
 
@@ -221,29 +221,18 @@ Hooks.GridCanvas = {
   }
 }
 
-// Room entrance animation - Severance style materialization
+// Room entrance animation - Fluid ripple effect
 Hooks.RoomEntrance = {
   mounted() {
-    // Add the materialization effect
-    this.el.classList.add('materializing')
+    // Create ripple overlay
+    const ripple = document.createElement('div')
+    ripple.className = 'room-ripple'
+    this.el.appendChild(ripple)
 
-    // Create scan lines overlay
-    const scanlines = document.createElement('div')
-    scanlines.className = 'room-scanlines'
-    this.el.appendChild(scanlines)
-
-    // Trigger entrance after a brief moment
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        this.el.classList.remove('materializing')
-        this.el.classList.add('materialized')
-
-        // Remove scanlines after animation
-        setTimeout(() => {
-          scanlines.remove()
-        }, 800)
-      }, 100)
-    })
+    // Remove ripple after animation completes
+    setTimeout(() => {
+      ripple.remove()
+    }, 1200)
   }
 }
 

@@ -333,11 +333,11 @@ body {
 .node:nth-child(5n) { animation-delay: -0.5s; }
 
 /* ============================================
-   Severance-Style Transition
-   Clean, clinical, eerily calm
+   Fluid Ripple Transition
+   Like dipping into water or oil
    ============================================ */
 
-.severance-transition {
+.fluid-transition {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -345,80 +345,98 @@ body {
   overflow: hidden;
 }
 
-.severance-lines {
+.fluid-ripple {
   position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0;
-}
-
-.severance-line {
-  height: 0;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(245, 240, 232, 0.03) 20%,
-    rgba(245, 240, 232, 0.08) 50%,
-    rgba(245, 240, 232, 0.03) 80%,
-    transparent 100%
-  );
-  transform: scaleX(0);
-  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.severance-transition.active .severance-line {
-  height: 33.34vh;
-  transform: scaleX(1);
-}
-
-.severance-transition.active .severance-line:nth-child(1) {
-  transition-delay: 0s;
-  transform-origin: left;
-}
-
-.severance-transition.active .severance-line:nth-child(2) {
-  transition-delay: 0.1s;
-  transform-origin: right;
-}
-
-.severance-transition.active .severance-line:nth-child(3) {
-  transition-delay: 0.2s;
-  transform-origin: left;
-}
-
-.severance-flash {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center,
-    rgba(245, 240, 232, 0.95) 0%,
-    rgba(245, 240, 232, 0.8) 30%,
-    rgba(219, 167, 111, 0.4) 60%,
-    transparent 100%
-  );
+  top: 50%;
+  left: 50%;
+  width: 100vmax;
+  height: 100vmax;
+  margin-left: -50vmax;
+  margin-top: -50vmax;
+  border-radius: 50%;
+  transform: scale(0);
   opacity: 0;
-  transition: opacity 0.3s ease;
 }
 
-.severance-transition.active .severance-flash {
-  opacity: 1;
-  transition-delay: 0.5s;
-  animation: severance-pulse 0.6s ease-out 0.5s forwards;
+.fluid-ripple-1 {
+  background: radial-gradient(circle,
+    transparent 0%,
+    transparent 40%,
+    rgba(219, 167, 111, 0.08) 50%,
+    rgba(219, 167, 111, 0.15) 55%,
+    rgba(219, 167, 111, 0.08) 60%,
+    transparent 70%
+  );
 }
 
-@keyframes severance-pulse {
+.fluid-ripple-2 {
+  background: radial-gradient(circle,
+    transparent 0%,
+    transparent 35%,
+    rgba(200, 180, 160, 0.06) 45%,
+    rgba(200, 180, 160, 0.12) 50%,
+    rgba(200, 180, 160, 0.06) 55%,
+    transparent 65%
+  );
+}
+
+.fluid-ripple-3 {
+  background: radial-gradient(circle,
+    transparent 0%,
+    transparent 30%,
+    rgba(245, 240, 232, 0.04) 40%,
+    rgba(245, 240, 232, 0.1) 45%,
+    rgba(245, 240, 232, 0.04) 50%,
+    transparent 60%
+  );
+}
+
+.fluid-fade {
+  position: absolute;
+  inset: 0;
+  background: var(--void);
+  opacity: 0;
+}
+
+.fluid-transition.active .fluid-ripple-1 {
+  animation: ripple-out 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.fluid-transition.active .fluid-ripple-2 {
+  animation: ripple-out 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.1s forwards;
+}
+
+.fluid-transition.active .fluid-ripple-3 {
+  animation: ripple-out 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s forwards;
+}
+
+.fluid-transition.active .fluid-fade {
+  animation: fade-to-dark 1s cubic-bezier(0.4, 0, 0.2, 1) 0.3s forwards;
+}
+
+@keyframes ripple-out {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-to-dark {
   0% {
     opacity: 0;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
   }
   100% {
     opacity: 1;
-    transform: scale(1.5);
-    background: rgba(13, 11, 10, 1);
   }
 }
 
@@ -462,73 +480,53 @@ body {
 }
 
 /* ============================================
-   Room Entrance Animation - Severance Style
+   Room Entrance Animation - Fluid/Ripple Style
    ============================================ */
 
 .room-entrance {
   position: relative;
+  opacity: 1;
 }
 
 .room-entrance.materializing {
-  opacity: 0;
+  opacity: 1;
 }
 
-.room-entrance.materializing > * {
-  opacity: 0;
-  transform: translateY(20px);
+.room-entrance.materialized {
+  opacity: 1;
 }
 
-.room-entrance.materialized > * {
-  animation: room-element-appear 0.6s var(--ease-out-expo) forwards;
-}
-
-.room-entrance.materialized > *:nth-child(1) { animation-delay: 0s; }
-.room-entrance.materialized > *:nth-child(2) { animation-delay: 0.1s; }
-.room-entrance.materialized > *:nth-child(3) { animation-delay: 0.2s; }
-
-@keyframes room-element-appear {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-    filter: blur(4px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-.room-scanlines {
+/* Ripple overlay effect */
+.room-ripple {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 100;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(245, 240, 232, 0.015) 2px,
-    rgba(245, 240, 232, 0.015) 4px
+  background: radial-gradient(circle at center,
+    transparent 0%,
+    rgba(219, 167, 111, 0.03) 30%,
+    rgba(13, 11, 10, 0.1) 60%,
+    transparent 100%
   );
-  animation: scanlines-fade 0.8s ease-out forwards;
+  animation: ripple-expand 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
-@keyframes scanlines-fade {
+@keyframes ripple-expand {
   0% {
+    transform: scale(0);
     opacity: 1;
-    background-size: 100% 100%;
   }
-  50% {
-    opacity: 0.5;
+  60% {
+    opacity: 0.6;
   }
   100% {
+    transform: scale(3);
     opacity: 0;
   }
 }
 
-/* Subtle CRT flicker on entrance */
-.room-entrance.materialized::before {
+/* Subtle vignette that stays */
+.room-entrance::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -536,19 +534,10 @@ body {
   z-index: 99;
   background: radial-gradient(ellipse at center,
     transparent 0%,
-    transparent 70%,
-    rgba(13, 11, 10, 0.3) 100%
+    transparent 60%,
+    rgba(13, 11, 10, 0.25) 100%
   );
-  animation: vignette-appear 1s ease-out forwards;
-}
-
-@keyframes vignette-appear {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
+  opacity: 1;
 }
 
 /* ============================================
