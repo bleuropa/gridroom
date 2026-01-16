@@ -68,7 +68,8 @@ defmodule GridroomWeb.GridLive do
      |> assign(:dwell_progress, 0.0)
      |> assign(:page_title, "Gridroom")
      |> assign(:show_create_node, false)
-     |> assign(:create_node_form, to_form(%{"title" => "", "description" => "", "node_type" => "discussion"}))}
+     |> assign(:create_node_form, to_form(%{"title" => "", "description" => "", "node_type" => "discussion"}))
+     |> assign(:selected_node, nil)}
   end
 
   @impl true
@@ -86,8 +87,42 @@ defmodule GridroomWeb.GridLive do
   def handle_event("zoom", %{"delta" => delta, "x" => _x, "y" => _y}, socket) do
     viewport = socket.assigns.viewport
     zoom_factor = if delta > 0, do: 0.9, else: 1.1
-    new_zoom = max(0.25, min(4.0, viewport.zoom * zoom_factor))
+    # Allow zooming out to 0.1 (10%) to see all nodes at once
+    new_zoom = max(0.1, min(4.0, viewport.zoom * zoom_factor))
     {:noreply, assign(socket, :viewport, %{viewport | zoom: new_zoom})}
+  end
+
+  @impl true
+  def handle_event("zoom_to_fit", _params, socket) do
+    # Zoom out to show all nodes
+    nodes = socket.assigns.nodes
+    if Enum.empty?(nodes) do
+      {:noreply, socket}
+    else
+      # Calculate bounding box of all nodes
+      xs = Enum.map(nodes, & &1.position_x)
+      ys = Enum.map(nodes, & &1.position_y)
+      min_x = Enum.min(xs) - 100
+      max_x = Enum.max(xs) + 100
+      min_y = Enum.min(ys) - 100
+      max_y = Enum.max(ys) + 100
+
+      # Calculate required zoom to fit all nodes
+      width_needed = max_x - min_x
+      height_needed = max_y - min_y
+      zoom_x = 1000 / width_needed
+      zoom_y = 600 / height_needed
+      new_zoom = max(0.1, min(zoom_x, zoom_y) * 0.9)  # 90% fit with padding
+
+      # Center on the nodes
+      center_x = (min_x + max_x) / 2
+      center_y = (min_y + max_y) / 2
+
+      {:noreply,
+       socket
+       |> assign(:viewport, %{x: center_x, y: center_y, zoom: new_zoom})
+       |> assign(:camera_follow, false)}
+    end
   end
 
   @impl true
@@ -126,12 +161,35 @@ defmodule GridroomWeb.GridLive do
   end
 
   @impl true
+  def handle_event("select_node", %{"id" => node_id}, socket) do
+    node = Enum.find(socket.assigns.nodes, &(&1.id == node_id))
+    {:noreply, assign(socket, :selected_node, node)}
+  end
+
+  @impl true
+  def handle_event("deselect_node", _params, socket) do
+    {:noreply, assign(socket, :selected_node, nil)}
+  end
+
+  @impl true
   def handle_event("enter_node", %{"id" => node_id}, socket) do
     # Trigger the entry animation
     {:noreply,
      socket
      |> assign(:entering_node, node_id)
      |> push_event("entering_node", %{node_id: node_id})}
+  end
+
+  @impl true
+  def handle_event("enter_selected_node", _params, socket) do
+    case socket.assigns.selected_node do
+      nil -> {:noreply, socket}
+      node ->
+        {:noreply,
+         socket
+         |> assign(:entering_node, node.id)
+         |> push_event("entering_node", %{node_id: node.id})}
+    end
   end
 
   @impl true
@@ -414,8 +472,8 @@ defmodule GridroomWeb.GridLive do
               <circle r="32" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.4" opacity="0.3" class="animate-pulse-ring" style="animation-delay: -1s;" />
             <% end %>
 
-            <!-- Node shape with link -->
-            <.node_shape node={node} color={node_type_color(node.node_type)} />
+            <!-- Node shape (click to select) -->
+            <.node_shape node={node} color={node_type_color(node.node_type)} selected={@selected_node && @selected_node.id == node.id} />
 
             <!-- Inner glow for active nodes -->
             <%= if activity.level in [:active, :buzzing] do %>
@@ -582,15 +640,23 @@ defmodule GridroomWeb.GridLive do
 
       <!-- Controls hint -->
       <div class="absolute bottom-6 right-6 ui-overlay text-[#3a3530] max-w-xs text-right">
+        <div class="flex items-center gap-3 mb-2">
+          <button
+            phx-click="zoom_to_fit"
+            class="text-[#5a4f42] hover:text-[#c9a962] text-[10px] uppercase tracking-wide transition-colors border border-[#2a2522] hover:border-[#c9a962]/40 px-2 py-1"
+          >
+            View All
+          </button>
+        </div>
         <p class="text-xs leading-relaxed opacity-60">
           <span class="text-[#5a4f42]">WASD</span> move ·
-          <span class="text-[#5a4f42]">drag</span> pan ·
-          <span class="text-[#5a4f42]">space</span> center
+          <span class="text-[#5a4f42]">scroll</span> zoom ·
+          <span class="text-[#5a4f42]">click</span> select
           <%= if @logged_in do %>
             · <span class="text-[#5a4f42]">N</span> new node
           <% end %>
           <%= if !@camera_follow do %>
-            · <span class="text-[#c9a962]">camera detached</span>
+            · <span class="text-[#c9a962]">detached</span>
           <% end %>
         </p>
       </div>
@@ -689,9 +755,87 @@ defmodule GridroomWeb.GridLive do
           </form>
         </div>
       <% end %>
+
+      <!-- Selected Node Preview Panel -->
+      <%= if @selected_node && !@show_create_node do %>
+        <.node_preview_panel node={@selected_node} />
+      <% end %>
     </div>
     """
   end
+
+  # Node preview panel component
+  defp node_preview_panel(assigns) do
+    activity = Map.get(assigns.node, :activity, %{level: :dormant, count: 0})
+    assigns = assign(assigns, :activity, activity)
+
+    ~H"""
+    <div class="absolute bottom-24 left-1/2 -translate-x-1/2 w-96 bg-[#0d0b0a]/95 border border-[#2a2522] backdrop-blur-sm animate-fade-in">
+      <!-- Header with close button -->
+      <div class="p-4 border-b border-[#2a2522] flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class={"w-3 h-3 rounded-full #{node_type_class(@node.node_type)}"}></div>
+          <h3 class="text-[#e8e0d5] font-medium"><%= @node.title %></h3>
+        </div>
+        <button
+          phx-click="deselect_node"
+          class="text-[#5a4f42] hover:text-[#c4b8a8] text-xl leading-none transition-colors"
+        >
+          &times;
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="p-4">
+        <%= if @node.description do %>
+          <p class="text-[#8a7d6d] text-sm mb-4 leading-relaxed"><%= @node.description %></p>
+        <% end %>
+
+        <!-- Activity and metadata -->
+        <div class="flex items-center gap-4 mb-4 text-xs">
+          <div class="flex items-center gap-2">
+            <div class={"w-2 h-2 rounded-full #{activity_color(@activity.level)}"}></div>
+            <span class="text-[#5a4f42] uppercase tracking-wide"><%= @activity.level %></span>
+          </div>
+          <%= if @activity.count > 0 do %>
+            <span class="text-[#5a4f42]">·</span>
+            <span class="text-[#8a7d6d]"><%= @activity.count %> messages this hour</span>
+          <% end %>
+        </div>
+
+        <!-- Creator info -->
+        <%= if @node.created_by && @node.created_by.username do %>
+          <div class="flex items-center gap-2 mb-4">
+            <svg width="14" height="14" viewBox="-10 -10 20 20">
+              <.user_glyph shape={@node.created_by.glyph_shape || "circle"} color={@node.created_by.glyph_color || "#5a4f42"} />
+            </svg>
+            <span class="text-[#5a4f42] text-xs">Created by <span class="text-[#8a7d6d]"><%= @node.created_by.username %></span></span>
+          </div>
+        <% end %>
+
+        <!-- Enter button -->
+        <button
+          phx-click="enter_selected_node"
+          class="w-full px-4 py-3 bg-[#c9a962] rounded text-[#0d0b0a] text-sm font-medium hover:bg-[#dba76f] transition-colors flex items-center justify-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Enter Node
+        </button>
+
+        <p class="text-[#3a3530] text-[10px] text-center mt-3 tracking-wide">
+          Press <span class="text-[#5a4f42]">Enter</span> or click to join the conversation
+        </p>
+      </div>
+    </div>
+    """
+  end
+
+  defp activity_color(:dormant), do: "bg-[#3a3530]"
+  defp activity_color(:quiet), do: "bg-[#5a4f42]"
+  defp activity_color(:active), do: "bg-[#8b9a7d]"
+  defp activity_color(:buzzing), do: "bg-[#c9a962] animate-pulse"
 
   # Generate connections between nearby nodes
   defp node_connections(nodes) do
@@ -821,10 +965,36 @@ defmodule GridroomWeb.GridLive do
   # Node shape component
   attr :node, :map, required: true
   attr :color, :string, required: true
+  attr :selected, :boolean, default: false
   # Node shapes - centered at 0,0, brightness controlled by parent group
   defp node_shape(assigns) do
     ~H"""
-    <a href={~p"/node/#{@node.id}"} class="block">
+    <g
+      class="cursor-pointer"
+      phx-click="select_node"
+      phx-value-id={@node.id}
+    >
+      <!-- Selection ring (when selected) -->
+      <%= if @selected do %>
+        <circle
+          r="38"
+          fill="none"
+          stroke="#c9a962"
+          stroke-width="2"
+          opacity="0.8"
+          class="animate-breathe"
+        />
+        <circle
+          r="42"
+          fill="none"
+          stroke="#c9a962"
+          stroke-width="1"
+          opacity="0.4"
+          stroke-dasharray="4,4"
+          class="animate-spin-slow"
+        />
+      <% end %>
+
       <%= case @node.glyph_shape do %>
         <% "hexagon" -> %>
           <polygon
@@ -852,7 +1022,7 @@ defmodule GridroomWeb.GridLive do
             filter="url(#node-glow)"
           />
       <% end %>
-    </a>
+    </g>
     """
   end
 

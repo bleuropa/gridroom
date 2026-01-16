@@ -90,9 +90,17 @@ Hooks.GridCanvas = {
         return
       }
 
-      // Close sidebar (Escape)
+      // Close sidebar or deselect node (Escape)
       if (key === 'escape') {
         this.pushEvent('close_create_node', {})
+        this.pushEvent('deselect_node', {})
+        return
+      }
+
+      // Enter selected node (Enter)
+      if (key === 'enter') {
+        e.preventDefault()
+        this.pushEvent('enter_selected_node', {})
         return
       }
 
