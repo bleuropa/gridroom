@@ -22,6 +22,66 @@ It feels like wandering a library that's also a pub after hours.
 
 ---
 
+## The Living Grid: AI Content Seeding
+
+The grid isn't just user-generated - it breathes on its own. New nodes trickle in continuously, seeded by AI that monitors the world's conversations.
+
+### How It Works
+
+**Source: xAI/Grok + X Trends**
+- Use xAI's X Search API to find trending topics, conversations, debates
+- Grok synthesizes what's being discussed into abstract node concepts
+- New nodes appear on the grid organically, like mushrooms after rain
+
+**The Seeding Rhythm**
+- New nodes appear every few hours (not constant, feels organic)
+- Some nodes are "hot" (trending now) - they glow warmer
+- Some are "emergent" (building momentum) - subtle pulse
+- Some are "evergreen" (perennial topics) - stable, anchored
+
+**Node Generation**
+- AI distills a trend into a concise topic/question
+- Assigns it a position on the grid (near related nodes)
+- Seeds initial context (a brief, mysterious description)
+- Users discover and claim it through conversation
+
+**Examples of Seeded Nodes**
+- "The AI hiring question" (from tech discourse)
+- "Sleep as resistance" (from wellness trends)
+- "The third place is dead" (from urban commentary)
+- "Vibes-based decision making" (from culture chatter)
+
+### Why This Matters
+
+1. **Solves cold start** - Grid is alive from day one
+2. **Keeps it fresh** - Always something new to discover
+3. **Reduces burden on users** - Don't need to create, just explore
+4. **Connects to the world** - Grid reflects what humanity is thinking about
+5. **Mystery** - "Where do these nodes come from?" adds to the vibe
+
+### Technical: xAI Integration
+
+```
+xAI X Search API
+├── Keyword search for trending topics
+├── Semantic search for emerging themes
+├── Date filtering for recency
+└── Handle filtering for quality sources
+
+Processing Pipeline:
+1. Fetch trends/conversations from X via xAI
+2. Grok synthesizes into node concepts
+3. Check for duplicate/similar existing nodes
+4. Position new node on grid (semantic proximity)
+5. Publish with subtle "new" indicator
+```
+
+**API**: `https://api.x.ai/v1/responses` with X Search tool
+**Model**: `grok-4-1-fast` for speed
+**Frequency**: Cron job every 2-4 hours
+
+---
+
 ## Aesthetic & Style Guide
 
 ### The Severance Energy
