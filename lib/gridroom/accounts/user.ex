@@ -15,6 +15,7 @@ defmodule Gridroom.Accounts.User do
     field :password, :string, virtual: true, redact: true
     field :glyph_shape, :string, default: "circle"
     field :glyph_color, :string, default: "#D4A574"
+    field :resonance, :integer, default: 50
 
     has_many :messages, Gridroom.Grid.Message
 

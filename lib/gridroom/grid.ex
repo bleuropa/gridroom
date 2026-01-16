@@ -97,6 +97,10 @@ defmodule Gridroom.Grid do
 
   # Messages
 
+  def get_message!(id), do: Repo.get!(Message, id)
+
+  def get_message(id), do: Repo.get(Message, id)
+
   def list_messages_for_node(node_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 50)
 

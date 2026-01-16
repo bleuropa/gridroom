@@ -1,7 +1,7 @@
 defmodule GridroomWeb.NodeLive do
   use GridroomWeb, :live_view
 
-  alias Gridroom.{Grid, Accounts, Connections}
+  alias Gridroom.{Grid, Accounts, Connections, Resonance}
   alias GridroomWeb.Presence
 
   @impl true
@@ -173,6 +173,46 @@ defmodule GridroomWeb.NodeLive do
      socket
      |> assign(:is_remembered, false)
      |> assign(:remembered_user_ids, updated_ids)}
+  end
+
+  @impl true
+  def handle_event("affirm_message", %{"id" => message_id}, socket) do
+    message = Grid.get_message!(message_id)
+    user = socket.assigns.user
+
+    case Resonance.affirm_message(user, message) do
+      {:ok, _updated_user} ->
+        {:noreply,
+         socket
+         |> assign(:feedback_given, %{message_id: message_id, type: :affirm})
+         |> push_event("feedback_given", %{message_id: message_id, type: "affirm"})}
+
+      {:error, :cooldown_active} ->
+        {:noreply, socket}
+
+      {:error, :cannot_feedback_self} ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("dismiss_message", %{"id" => message_id}, socket) do
+    message = Grid.get_message!(message_id)
+    user = socket.assigns.user
+
+    case Resonance.dismiss_message(user, message) do
+      {:ok, _updated_user} ->
+        {:noreply,
+         socket
+         |> assign(:feedback_given, %{message_id: message_id, type: :dismiss})
+         |> push_event("feedback_given", %{message_id: message_id, type: "dismiss"})}
+
+      {:error, :cooldown_active} ->
+        {:noreply, socket}
+
+      {:error, :cannot_feedback_self} ->
+        {:noreply, socket}
+    end
   end
 
   @impl true
@@ -361,13 +401,36 @@ defmodule GridroomWeb.NodeLive do
               <.user_glyph user={@user} />
             </svg>
           </div>
-          <div>
+          <div class="flex-1">
             <h3 class="text-[#e8dcc8] text-lg font-medium">
               <%= @user.username || "Anonymous" %>
             </h3>
             <p class="text-[#5a4f42] text-xs uppercase tracking-wider mt-1">
               <%= if @user.username, do: "Registered", else: "Visitor" %>
             </p>
+          </div>
+        </div>
+
+        <!-- Resonance meter -->
+        <div class="mt-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[#5a4f42] text-[10px] uppercase tracking-wider">Resonance</span>
+            <span class={[
+              "text-[10px] uppercase tracking-wider",
+              resonance_state_color(Resonance.resonance_state(@user))
+            ]}>
+              <%= Resonance.resonance_state(@user) %>
+            </span>
+          </div>
+          <div class="h-1.5 bg-[#1a1714] overflow-hidden">
+            <div
+              class={[
+                "h-full transition-all duration-500",
+                resonance_bar_color(Resonance.resonance_level(@user))
+              ]}
+              style={"width: #{Resonance.resonance_percentage(@user)}%"}
+            >
+            </div>
           </div>
         </div>
       </div>
@@ -613,9 +676,32 @@ defmodule GridroomWeb.NodeLive do
             </p>
           <% end %>
           <p class="text-[#e8dcc8] text-sm leading-relaxed"><%= @message.content %></p>
-          <p class="text-[10px] text-[#3a3330] mt-2 tracking-wide">
-            <%= Calendar.strftime(@message.inserted_at, "%H:%M") %>
-          </p>
+          <div class="flex items-center justify-between mt-2">
+            <p class="text-[10px] text-[#3a3330] tracking-wide">
+              <%= Calendar.strftime(@message.inserted_at, "%H:%M") %>
+            </p>
+            <!-- Affirm/Dismiss buttons (only for others' messages) -->
+            <%= if !@is_own do %>
+              <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  phx-click="affirm_message"
+                  phx-value-id={@message.id}
+                  class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#8b9a7d] transition-colors px-2 py-0.5 border border-transparent hover:border-[#8b9a7d]/30"
+                  title="Affirm this message"
+                >
+                  Affirm
+                </button>
+                <button
+                  phx-click="dismiss_message"
+                  phx-value-id={@message.id}
+                  class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#d4756a] transition-colors px-2 py-0.5 border border-transparent hover:border-[#d4756a]/30"
+                  title="Dismiss this message"
+                >
+                  Dismiss
+                </button>
+              </div>
+            <% end %>
+          </div>
         </div>
       </div>
     </div>
@@ -661,4 +747,19 @@ defmodule GridroomWeb.NodeLive do
     </g>
     """
   end
+
+  # Resonance helper functions
+  defp resonance_state_color("unstable"), do: "text-[#d4756a]"
+  defp resonance_state_color("wavering"), do: "text-[#c9a962]/70"
+  defp resonance_state_color("steady"), do: "text-[#8a7d6d]"
+  defp resonance_state_color("strong"), do: "text-[#8b9a7d]"
+  defp resonance_state_color("radiant"), do: "text-[#c9a962]"
+  defp resonance_state_color(_), do: "text-[#5a4f42]"
+
+  defp resonance_bar_color(:depleted), do: "bg-[#d4756a]"
+  defp resonance_bar_color(:low), do: "bg-[#c9a962]/50"
+  defp resonance_bar_color(:normal), do: "bg-[#8a7d6d]"
+  defp resonance_bar_color(:elevated), do: "bg-[#8b9a7d]"
+  defp resonance_bar_color(:radiant), do: "bg-gradient-to-r from-[#c9a962] to-[#d4b46d]"
+  defp resonance_bar_color(_), do: "bg-[#5a4f42]"
 end
