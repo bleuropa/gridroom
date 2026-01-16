@@ -311,7 +311,7 @@ defmodule GridroomWeb.GridLive do
             <% end %>
 
             <!-- Node shape with link -->
-            <.node_shape node={node} activity_level={activity.level} />
+            <.node_shape node={node} color={node_type_color(node.node_type)} />
 
             <!-- Activity indicator - warm ember glow instead of dots -->
             <%= if activity.level in [:active, :buzzing] do %>
@@ -564,7 +564,7 @@ defmodule GridroomWeb.GridLive do
 
   # Node shape component
   attr :node, :map, required: true
-  attr :activity_level, :atom, default: :dormant
+  attr :color, :string, required: true
   # Node shapes - centered at 0,0, brightness controlled by parent group
   defp node_shape(assigns) do
     ~H"""
@@ -573,26 +573,26 @@ defmodule GridroomWeb.GridLive do
         <% "hexagon" -> %>
           <polygon
             points="0,-20 17,-10 17,10 0,20 -17,10 -17,-10"
-            fill={@node.glyph_color}
+            fill={@color}
             filter="url(#node-glow)"
           />
         <% "circle" -> %>
           <circle
             r="18"
-            fill={@node.glyph_color}
+            fill={@color}
             filter="url(#node-glow)"
           />
         <% "square" -> %>
           <rect
             x="-15" y="-15"
             width="30" height="30"
-            fill={@node.glyph_color}
+            fill={@color}
             filter="url(#node-glow)"
           />
         <% _ -> %>
           <circle
             r="18"
-            fill={@node.glyph_color}
+            fill={@color}
             filter="url(#node-glow)"
           />
       <% end %>

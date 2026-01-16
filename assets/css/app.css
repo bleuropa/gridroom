@@ -226,13 +226,12 @@ body {
 
 .node {
   cursor: pointer;
-  transition: all 0.4s var(--ease-out-expo);
+  transition: filter 0.4s var(--ease-out-expo);
   filter: drop-shadow(0 0 8px var(--glow-faint));
 }
 
 .node:hover {
-  filter: drop-shadow(0 0 20px var(--glow-warm)) brightness(1.15);
-  transform: scale(1.08);
+  filter: drop-shadow(0 0 20px var(--glow-warm)) brightness(1.2);
 }
 
 .node-shape {
