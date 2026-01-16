@@ -100,3 +100,99 @@
 [data-phx-root-id] { display: contents }
 
 /* This file is for your main application CSS */
+
+/* ============================================
+   GRIDROOM - Severance meets Fantasy Tavern
+   ============================================ */
+
+:root {
+  /* Base colors - Severance's muted palette */
+  --grid-base: #1a1815;
+  --grid-surface: #252220;
+  --grid-line: rgba(139, 115, 85, 0.15);
+
+  /* Text colors */
+  --text-primary: #e8e0d5;
+  --text-secondary: #b8a99a;
+  --text-muted: #6b5d52;
+
+  /* Accent colors - warm tavern glow */
+  --accent-warm: #d4a574;
+  --accent-gold: #c9a962;
+  --accent-ember: #b87333;
+
+  /* Cool accents for structure */
+  --accent-cool: #7a8b9a;
+}
+
+/* Background */
+.bg-grid-base { background-color: var(--grid-base); }
+.bg-grid-surface { background-color: var(--grid-surface); }
+
+/* Borders */
+.border-grid-line { border-color: var(--grid-line); }
+
+/* Text */
+.text-text-primary { color: var(--text-primary); }
+.text-text-secondary { color: var(--text-secondary); }
+.text-text-muted { color: var(--text-muted); }
+
+/* Accents */
+.bg-accent-warm { background-color: var(--accent-warm); }
+.text-accent-warm { color: var(--accent-warm); }
+
+/* Body defaults */
+body {
+  background-color: var(--grid-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* SVG node styling */
+.node {
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.node:hover {
+  filter: brightness(1.2);
+}
+
+/* Smooth animations */
+@keyframes breathe {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--grid-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--grid-line);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Focus states */
+input:focus, textarea:focus, button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-warm);
+}
+
+/* Selection */
+::selection {
+  background: var(--accent-warm);
+  color: var(--grid-base);
+}

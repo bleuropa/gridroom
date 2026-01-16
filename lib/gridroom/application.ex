@@ -12,8 +12,8 @@ defmodule Gridroom.Application do
       Gridroom.Repo,
       {DNSCluster, query: Application.get_env(:gridroom, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Gridroom.PubSub},
-      # Start a worker by calling: Gridroom.Worker.start_link(arg)
-      # {Gridroom.Worker, arg},
+      # Presence for tracking users on the grid
+      GridroomWeb.Presence,
       # Start to serve requests, typically the last entry
       GridroomWeb.Endpoint
     ]

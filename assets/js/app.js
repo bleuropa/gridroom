@@ -24,10 +24,87 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
+// Hooks for Gridroom
+const Hooks = {}
+
+// Grid Canvas Hook - handles pan/zoom
+Hooks.GridCanvas = {
+  mounted() {
+    this.isDragging = false
+    this.lastX = 0
+    this.lastY = 0
+
+    // Mouse events for panning
+    this.el.addEventListener('mousedown', (e) => {
+      if (e.target.closest('a')) return // Don't drag when clicking links
+      this.isDragging = true
+      this.lastX = e.clientX
+      this.lastY = e.clientY
+      this.el.style.cursor = 'grabbing'
+    })
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isDragging) return
+      const dx = (e.clientX - this.lastX) * -1
+      const dy = (e.clientY - this.lastY) * -1
+      this.lastX = e.clientX
+      this.lastY = e.clientY
+      this.pushEvent('pan', { dx, dy })
+    })
+
+    window.addEventListener('mouseup', () => {
+      this.isDragging = false
+      this.el.style.cursor = 'move'
+    })
+
+    // Wheel for zooming
+    this.el.addEventListener('wheel', (e) => {
+      e.preventDefault()
+      this.pushEvent('zoom', {
+        delta: e.deltaY,
+        x: e.clientX,
+        y: e.clientY
+      })
+    }, { passive: false })
+
+    // Touch events for mobile
+    let lastTouchX = 0
+    let lastTouchY = 0
+
+    this.el.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        lastTouchX = e.touches[0].clientX
+        lastTouchY = e.touches[0].clientY
+      }
+    })
+
+    this.el.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1) {
+        const dx = (e.touches[0].clientX - lastTouchX) * -1
+        const dy = (e.touches[0].clientY - lastTouchY) * -1
+        lastTouchX = e.touches[0].clientX
+        lastTouchY = e.touches[0].clientY
+        this.pushEvent('pan', { dx, dy })
+      }
+    })
+  }
+}
+
+// Scroll to bottom hook for messages
+Hooks.ScrollToBottom = {
+  mounted() {
+    this.el.scrollTop = this.el.scrollHeight
+  },
+  updated() {
+    this.el.scrollTop = this.el.scrollHeight
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken}
+  params: {_csrf_token: csrfToken},
+  hooks: Hooks
 })
 
 // Show progress bar on live navigation and form submits

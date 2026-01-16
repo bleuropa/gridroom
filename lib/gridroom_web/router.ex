@@ -17,7 +17,8 @@ defmodule GridroomWeb.Router do
   scope "/", GridroomWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", GridLive, :index
+    live "/node/:id", NodeLive, :show
   end
 
   # Other scopes may use custom stacks.
