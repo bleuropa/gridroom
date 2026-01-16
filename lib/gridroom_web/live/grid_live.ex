@@ -164,13 +164,15 @@ defmodule GridroomWeb.GridLive do
   @impl true
   def handle_event("create_node", %{"title" => title, "description" => description, "node_type" => node_type}, socket) do
     player = socket.assigns.player
+    user = socket.assigns.user
 
     attrs = %{
       title: String.trim(title),
       description: String.trim(description),
       position_x: player.x,
       position_y: player.y,
-      node_type: node_type
+      node_type: node_type,
+      created_by_id: user.id
     }
 
     case Grid.create_node(attrs) do
@@ -443,6 +445,18 @@ defmodule GridroomWeb.GridLive do
             >
               <%= truncate_title(node.title, 24) %>
             </text>
+            <!-- Creator username (if user-created) -->
+            <%= if node.created_by && node.created_by.username do %>
+              <text
+                y="54"
+                text-anchor="middle"
+                class="node-creator pointer-events-none"
+                fill={text_color_for_brightness(total_brightness * 0.6)}
+                style="font-size: 9px; font-family: 'Space Grotesk', sans-serif; font-style: italic;"
+              >
+                by <%= node.created_by.username %>
+              </text>
+            <% end %>
           </g>
         <% end %>
 

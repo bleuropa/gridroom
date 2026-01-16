@@ -32,8 +32,9 @@ defmodule Gridroom.Grid do
       |> Repo.all()
       |> Map.new()
 
-    # Get all nodes and attach activity level
+    # Get all nodes with creator and attach activity level
     Node
+    |> preload(:created_by)
     |> Repo.all()
     |> Enum.map(fn node ->
       message_count = Map.get(activity_map, node.id, 0)
@@ -73,7 +74,8 @@ defmodule Gridroom.Grid do
   end
 
   defp broadcast_node_created(node) do
-    # Add activity info for consistency with list_nodes_with_activity
+    # Preload creator and add activity info for consistency with list_nodes_with_activity
+    node = Repo.preload(node, :created_by)
     node_with_activity = Map.put(node, :activity, %{count: 0, level: :dormant})
 
     Phoenix.PubSub.broadcast(
