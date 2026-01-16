@@ -23,6 +23,7 @@
 
 ### High Priority (P1)
 - [[E-2025-002-social-friends-system]] - Epic: Social & Friends System
+- [[T-2025-015-energy-reputation-system]] - Energy/Reputation system (Lumon-style moderation)
 - [[T-2025-013-share-nodes-via-url]] - Share nodes via URL
 - [[T-2025-010-enhanced-node-chat-viz]] - Enhanced chat room visualization
 - [[T-2025-006-node-creation-system]] - Node creation system
