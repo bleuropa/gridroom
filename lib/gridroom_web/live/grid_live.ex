@@ -345,27 +345,40 @@ defmodule GridroomWeb.GridLive do
 
           <!-- Dwell progress ring -->
           <%= if @dwelling_node do %>
-            <!-- Background ring -->
-            <circle
-              r="24"
-              fill="none"
-              stroke="#dba76f"
-              stroke-width="0.5"
-              opacity="0.3"
-            />
-            <!-- Progress ring - circumference is ~151 for r=24 -->
-            <circle
-              r="24"
-              fill="none"
-              stroke="#dba76f"
-              stroke-width="2.5"
-              opacity="0.9"
-              stroke-dasharray={"#{Float.round(@dwell_progress * 1.51, 1)} 151"}
-              stroke-dashoffset="0"
-              stroke-linecap="round"
-              style="transform: rotate(-90deg); transform-origin: center;"
-              class="dwell-ring"
-            />
+            <g class="dwell-indicator">
+              <!-- Background ring -->
+              <circle
+                r="26"
+                fill="none"
+                stroke="rgba(219, 167, 111, 0.2)"
+                stroke-width="3"
+              />
+              <!-- Progress ring - uses dashoffset for smooth progress -->
+              <!-- Circumference = 2 * pi * 26 ≈ 163.4 -->
+              <circle
+                r="26"
+                fill="none"
+                stroke="#dba76f"
+                stroke-width="3"
+                stroke-dasharray="163.4"
+                stroke-dashoffset={163.4 - (@dwell_progress / 100 * 163.4)}
+                stroke-linecap="round"
+                transform="rotate(-90 0 0)"
+              />
+              <!-- Glow effect -->
+              <circle
+                r="26"
+                fill="none"
+                stroke="#dba76f"
+                stroke-width="6"
+                opacity="0.3"
+                stroke-dasharray="163.4"
+                stroke-dashoffset={163.4 - (@dwell_progress / 100 * 163.4)}
+                stroke-linecap="round"
+                transform="rotate(-90 0 0)"
+                filter="url(#node-glow)"
+              />
+            </g>
           <% end %>
         </g>
       </svg>
