@@ -3,11 +3,12 @@ type: task
 id: T-2025-015
 story:
 epic: E-2025-002
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
 started: 2026-01-16
+completed: 2026-01-16
 ---
 
 # Task: Energy/Reputation System (Lumon-style)
@@ -15,12 +16,12 @@ started: 2026-01-16
 ## Task Details
 **Task ID**: T-2025-015-energy-reputation-system
 **Epic**: [[E-2025-002-social-friends-system]]
-**Status**: Backlog
+**Status**: Completed
 **Priority**: P1
 **Branch**: feat/T-2025-015-energy-reputation-system
 **Created**: 2026-01-16
-**Started**:
-**Completed**:
+**Started**: 2026-01-16
+**Completed**: 2026-01-16
 
 ## Description
 Design and implement a Lumon-inspired energy/reputation system that rewards positive contributions and discourages trolling. Users accumulate or lose "energy" based on their interactions across the platform. Low energy users can be auto-removed from conversations, forcing them to rebuild their standing elsewhere.
@@ -110,11 +111,11 @@ Design and implement a Lumon-inspired energy/reputation system that rewards posi
 - [ ] Should node creators see their node's energy contribution?
 
 ## Acceptance Criteria
-- [ ] Design document approved with naming and mechanics
-- [ ] Energy gain/loss mechanics implemented
-- [ ] Visual indicators for energy state
-- [ ] Auto-moderation (kick low-energy users) working
-- [ ] Energy displayed in user profile sidebar
+- [x] Design document approved with naming and mechanics (named "Resonance")
+- [x] Energy gain/loss mechanics implemented (Affirm/Dismiss system)
+- [x] Visual indicators for energy state (glyph brightness, resonance meter)
+- [x] Auto-moderation (kick low-energy users) working
+- [x] Energy displayed in user profile sidebar
 
 ## Context
 See [[T-2025-015-context]] for detailed design exploration.

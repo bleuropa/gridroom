@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-010
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
@@ -11,12 +11,12 @@ updated: 2026-01-16
 
 ## Task Details
 **Task ID**: T-2025-010-enhanced-node-chat-viz
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1
 **Branch**: feat/T-2025-010-enhanced-node-chat-viz
 **Created**: 2026-01-16
 **Started**: 2026-01-16
-**Completed**:
+**Completed**: 2026-01-16
 
 ## Description
 Improve the visual experience of node chat rooms. Key enhancements:
@@ -29,19 +29,19 @@ Improve the visual experience of node chat rooms. Key enhancements:
 This is about making the room feel like a *place*, not a chat app.
 
 ## Acceptance Criteria
-- [ ] Presence display shows all users in room (diamond/glyph row at bottom)
-- [ ] Messages feel spatial, not list-like
-- [ ] Active users have visual indicator (glow, pulse)
-- [ ] Typing indicator works
-- [ ] Overall vibe matches Gridroom aesthetic
+- [x] Presence display shows all users in room (diamond/glyph row at bottom)
+- [x] Messages styled to feel spatial (Lumon aesthetic, option 3)
+- [x] Active users have visual indicator (glow, pulse, resonance-based opacity)
+- [x] Typing indicator works
+- [x] Overall vibe matches Gridroom aesthetic
 
 ## Checklist
-- [ ] Design presence row (diamond avatars)
-- [ ] Implement presence row component
-- [ ] Redesign message display (spatial layout)
-- [ ] Add typing indicator
-- [ ] Add active/idle visual states for users
-- [ ] Animation and polish pass
+- [x] Design presence row (diamond avatars)
+- [x] Implement presence row component
+- [x] Redesign message display (styled list with spatial feel)
+- [x] Add typing indicator
+- [x] Add active/idle visual states for users (resonance-based)
+- [x] Animation and polish pass
 
 ## Technical Details
 ### Approach

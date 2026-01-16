@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-013
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
@@ -11,12 +11,12 @@ updated: 2026-01-16
 
 ## Task Details
 **Task ID**: T-2025-013-share-nodes-via-url
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1
 **Branch**: feat/T-2025-013-share-nodes-via-url
 **Created**: 2026-01-16
 **Started**: 2026-01-16
-**Completed**:
+**Completed**: 2026-01-16
 
 ## Description
 Users can share a direct URL to a node. Clicking the link takes you directly into that node's room. This is critical for viral growth and "join this conversation" sharing.
@@ -25,19 +25,19 @@ From VISION.md Viral Mechanics:
 > "Share a link to a specific node ('join this conversation')"
 
 ## Acceptance Criteria
-- [ ] Each node has a shareable URL
-- [ ] URL can be copied easily (share button)
-- [ ] Visiting URL takes user directly to node room
-- [ ] Works for new visitors (creates session, then enters node)
-- [ ] Good social preview (OG tags) when shared
+- [x] Each node has a shareable URL
+- [x] URL can be copied easily (share button)
+- [x] Visiting URL takes user directly to node room
+- [x] Works for new visitors (creates session, then enters node)
+- [x] Good social preview (OG tags) when shared
 
 ## Checklist
-- [ ] Generate URL-friendly node slugs/IDs
-- [ ] Add share button to node room UI
-- [ ] Implement direct node access route
-- [ ] Handle new users landing on node URL
-- [ ] Add OG meta tags for social sharing
-- [ ] Test sharing flow end-to-end
+- [x] Using node UUIDs for URLs (`/node/:id`)
+- [x] Add share button to node room UI
+- [x] Implement direct node access route
+- [x] Handle new users landing on node URL
+- [x] Add OG meta tags for social sharing
+- [x] Test sharing flow end-to-end
 
 ## Technical Details
 ### Approach

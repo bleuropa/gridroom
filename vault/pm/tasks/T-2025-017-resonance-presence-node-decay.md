@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-017
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
@@ -11,12 +11,12 @@ updated: 2026-01-16
 
 ## Task Details
 **Task ID**: T-2025-017-resonance-presence-node-decay
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1
 **Branch**: feat/T-2025-017-resonance-presence-node-decay
 **Created**: 2026-01-16
 **Started**: 2026-01-16
-**Completed**:
+**Completed**: 2026-01-16
 
 ## Description
 Make resonance ever-present in the user's experience and add node decay to keep the grid alive.
@@ -36,15 +36,15 @@ Make resonance ever-present in the user's experience and add node decay to keep 
 - Visual treatment for fading nodes (transparency, desaturation)
 
 ## Checklist
-- [ ] Add persistent resonance meter to grid view
-- [ ] Implement resonance change toast notifications
-- [ ] Add resonance-based effects to player glyph
-- [ ] Add periodic state whispers
-- [ ] Implement low resonance warning
-- [ ] Add decay tracking to nodes (last_activity_at field)
-- [ ] Create decay calculation logic
-- [ ] Visual treatment for fading nodes
-- [ ] Background job or check to clean up dead nodes
+- [x] Add persistent resonance meter to grid view
+- [x] Implement resonance change toast notifications
+- [x] Add resonance-based effects to player glyph
+- [ ] Add periodic state whispers (deferred - not essential)
+- [x] Implement low resonance warning
+- [x] Add decay tracking to nodes (last_activity_at field)
+- [x] Create decay calculation logic
+- [x] Visual treatment for fading nodes
+- [x] Filter out decayed nodes on grid load (replaced background job)
 
 ## Technical Details
 ### Files to Modify

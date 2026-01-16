@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-006
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
@@ -11,12 +11,12 @@ updated: 2026-01-16
 
 ## Task Details
 **Task ID**: T-2025-006-node-creation-system
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1
 **Branch**: feat/T-2025-006-node-creation-system
 **Created**: 2026-01-16
 **Started**: 2026-01-16
-**Completed**:
+**Completed**: 2026-01-16
 
 ## Description
 Allow users to create their own nodes on the grid. This is a core feature for user-generated content - users can plant new topic nodes where they want conversations to happen.
@@ -27,19 +27,19 @@ Key questions to resolve:
 - What metadata is required? (title, description, category)
 
 ## Acceptance Criteria
-- [ ] Auth users can create new nodes on the grid
-- [ ] Node creation UI appears at chosen grid location
-- [ ] Required fields: title (and optionally category/description)
-- [ ] New node appears immediately for all users
-- [ ] Creator is automatically placed in the new node
+- [x] Auth users can create new nodes on the grid
+- [x] Node creation UI appears at chosen grid location (sidebar form)
+- [x] Required fields: title (and optionally category/description)
+- [x] New node appears immediately for all users
+- [x] Creator is automatically placed in the new node
 
 ## Checklist
-- [ ] Design node creation modal/form
-- [ ] Add "create node" interaction (right-click? button?)
-- [ ] Implement `Nodes.create_node/2` in context
-- [ ] Broadcast new node via PubSub
-- [ ] Add rate limiting (max N nodes per user per day)
-- [ ] Test node creation flow
+- [x] Design node creation modal/form (sidebar)
+- [x] Add "create node" interaction (N key / button)
+- [x] Implement `Grid.create_node/1` in context
+- [x] Broadcast new node via PubSub
+- [ ] Add rate limiting (deferred - not essential for MVP)
+- [x] Test node creation flow
 
 ## Technical Details
 ### Approach
