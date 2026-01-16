@@ -304,6 +304,37 @@ defmodule Gridroom.Resonance do
   end
 
   @doc """
+  Get user IDs that the given user is currently on feedback cooldown with.
+  Returns a MapSet of user IDs.
+  """
+  def users_on_cooldown(user_id) do
+    cutoff = DateTime.utc_now() |> DateTime.add(-@feedback_cooldown_seconds, :second)
+
+    FeedbackCooldown
+    |> where([c], c.user_id == ^user_id and c.last_feedback_at > ^cutoff)
+    |> select([c], c.target_user_id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
+  Get message IDs that the user has given feedback on in a specific node.
+  Returns a map of %{message_id => feedback_type} where feedback_type is "affirm" or "dismiss".
+  """
+  def user_feedback_in_node(user_id, node_id) do
+    Transaction
+    |> where([t], t.source_user_id == ^user_id and t.node_id == ^node_id)
+    |> where([t], t.reason in ["affirm_received", "dismiss_received"])
+    |> where([t], not is_nil(t.message_id))
+    |> select([t], {t.message_id, t.reason})
+    |> Repo.all()
+    |> Map.new(fn {msg_id, reason} ->
+      type = if reason == "affirm_received", do: :affirm, else: :dismiss
+      {msg_id, type}
+    end)
+  end
+
+  @doc """
   Get the resonance thresholds for UI display.
   """
   def thresholds do

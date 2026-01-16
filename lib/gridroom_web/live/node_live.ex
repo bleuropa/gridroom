@@ -49,6 +49,10 @@ defmodule GridroomWeb.NodeLive do
     highlights = Grid.list_top_affirmed_messages(id, min_affirmations: 2, limit: 3)
     present_users = if connected?(socket), do: presence_to_map(Presence.list_users_in_node(id)), else: %{}
 
+    # Load feedback state for the current user
+    cooldown_users = Resonance.users_on_cooldown(user.id)
+    feedback_given = Resonance.user_feedback_in_node(user.id, id)
+
     # Load remembered users for recognition highlighting
     remembered_user_ids =
       user
@@ -64,6 +68,8 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:highlights, highlights)
      |> assign(:present_users, present_users)
      |> assign(:remembered_user_ids, remembered_user_ids)
+     |> assign(:cooldown_users, cooldown_users)
+     |> assign(:feedback_given, feedback_given)
      |> assign(:message_form, to_form(%{"content" => ""}))
      |> assign(:page_title, node.title)
      |> assign(:og_title, "#{node.title} - Gridroom")
@@ -197,9 +203,14 @@ defmodule GridroomWeb.NodeLive do
 
     case Resonance.affirm_message(user, message) do
       {:ok, _updated_user} ->
+        # Update feedback_given map and cooldown_users for immediate UI update
+        updated_feedback = Map.put(socket.assigns.feedback_given, message_id, :affirm)
+        updated_cooldowns = MapSet.put(socket.assigns.cooldown_users, message.user_id)
+
         {:noreply,
          socket
-         |> assign(:feedback_given, %{message_id: message_id, type: :affirm})
+         |> assign(:feedback_given, updated_feedback)
+         |> assign(:cooldown_users, updated_cooldowns)
          |> push_event("feedback_given", %{message_id: message_id, type: "affirm"})}
 
       {:error, :cooldown_active} ->
@@ -217,9 +228,14 @@ defmodule GridroomWeb.NodeLive do
 
     case Resonance.dismiss_message(user, message) do
       {:ok, _updated_user} ->
+        # Update feedback_given map and cooldown_users for immediate UI update
+        updated_feedback = Map.put(socket.assigns.feedback_given, message_id, :dismiss)
+        updated_cooldowns = MapSet.put(socket.assigns.cooldown_users, message.user_id)
+
         {:noreply,
          socket
-         |> assign(:feedback_given, %{message_id: message_id, type: :dismiss})
+         |> assign(:feedback_given, updated_feedback)
+         |> assign(:cooldown_users, updated_cooldowns)
          |> push_event("feedback_given", %{message_id: message_id, type: "dismiss"})}
 
       {:error, :cooldown_active} ->
@@ -400,6 +416,8 @@ defmodule GridroomWeb.NodeLive do
                 message={message}
                 current_user={@user}
                 is_recognized={MapSet.member?(@remembered_user_ids, message.user_id)}
+                on_cooldown={MapSet.member?(@cooldown_users, message.user_id)}
+                feedback_type={Map.get(@feedback_given, message.id)}
               />
             <% end %>
           </div>
@@ -828,9 +846,15 @@ defmodule GridroomWeb.NodeLive do
   attr :message, :map, required: true
   attr :current_user, :map, required: true
   attr :is_recognized, :boolean, default: false
+  attr :on_cooldown, :boolean, default: false
+  attr :feedback_type, :atom, default: nil
   defp message_bubble(assigns) do
     is_own = assigns.message.user_id == assigns.current_user.id
-    assigns = assign(assigns, :is_own, is_own)
+    # Can show feedback buttons if: not own message, not on cooldown, and haven't given feedback yet
+    can_give_feedback = !is_own && !assigns.on_cooldown && is_nil(assigns.feedback_type)
+    assigns = assigns
+      |> assign(:is_own, is_own)
+      |> assign(:can_give_feedback, can_give_feedback)
 
     ~H"""
     <div class={"flex gap-4 #{if @is_own, do: "flex-row-reverse"}"} data-message-id={@message.id}>
@@ -879,26 +903,48 @@ defmodule GridroomWeb.NodeLive do
             <p class="text-[10px] text-[#3a3330] tracking-wide">
               <%= Calendar.strftime(@message.inserted_at, "%H:%M") %>
             </p>
-            <!-- Affirm/Dismiss buttons (only for others' messages) -->
+            <!-- Affirm/Dismiss buttons or feedback indicator -->
             <%= if !@is_own do %>
-              <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <button
-                  phx-click="affirm_message"
-                  phx-value-id={@message.id}
-                  class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#8b9a7d] transition-colors px-2 py-0.5 border border-transparent hover:border-[#8b9a7d]/30"
-                  title="Affirm this message"
-                >
-                  Affirm
-                </button>
-                <button
-                  phx-click="dismiss_message"
-                  phx-value-id={@message.id}
-                  class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#d4756a] transition-colors px-2 py-0.5 border border-transparent hover:border-[#d4756a]/30"
-                  title="Dismiss this message"
-                >
-                  Dismiss
-                </button>
-              </div>
+              <%= cond do %>
+                <% @feedback_type == :affirm -> %>
+                  <!-- Already affirmed indicator -->
+                  <div class="flex items-center gap-1 text-[#8b9a7d]">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span class="text-[10px] uppercase tracking-wider">Affirmed</span>
+                  </div>
+                <% @feedback_type == :dismiss -> %>
+                  <!-- Already dismissed indicator -->
+                  <div class="flex items-center gap-1 text-[#d4756a]">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    <span class="text-[10px] uppercase tracking-wider">Dismissed</span>
+                  </div>
+                <% @can_give_feedback -> %>
+                  <!-- Feedback buttons -->
+                  <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button
+                      phx-click="affirm_message"
+                      phx-value-id={@message.id}
+                      class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#8b9a7d] transition-colors px-2 py-0.5 border border-transparent hover:border-[#8b9a7d]/30"
+                      title="Affirm this message"
+                    >
+                      Affirm
+                    </button>
+                    <button
+                      phx-click="dismiss_message"
+                      phx-value-id={@message.id}
+                      class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#d4756a] transition-colors px-2 py-0.5 border border-transparent hover:border-[#d4756a]/30"
+                      title="Dismiss this message"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                <% true -> %>
+                  <!-- On cooldown - show nothing -->
+              <% end %>
             <% end %>
           </div>
         </div>
