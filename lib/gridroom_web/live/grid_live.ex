@@ -4,6 +4,11 @@ defmodule GridroomWeb.GridLive do
   alias Gridroom.{Grid, Accounts}
   alias GridroomWeb.Presence
 
+  # Node entry constants
+  @entry_threshold 40
+  @dwell_time_ms 1500
+  @dwell_tick_ms 50
+
   @impl true
   def mount(params, session, socket) do
     # Get or create user from session
@@ -413,10 +418,6 @@ defmodule GridroomWeb.GridLive do
   defp distance_to_node(player, node) do
     :math.sqrt(:math.pow(player.x - node.position_x, 2) + :math.pow(player.y - node.position_y, 2))
   end
-
-  @entry_threshold 40
-  @dwell_time_ms 1500
-  @dwell_tick_ms 50
 
   defp check_node_proximity(socket, player) do
     nodes = socket.assigns.nodes
