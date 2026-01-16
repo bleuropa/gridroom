@@ -357,7 +357,7 @@ body {
   animation: ember-float 3s ease-in-out infinite;
 }
 
-/* Activity core glow pulse */
+/* Activity core glow pulse - opacity only (no transform to avoid SVG origin issues) */
 .activity-core {
   animation: activity-pulse 2s ease-in-out infinite;
 }
@@ -365,11 +365,9 @@ body {
 @keyframes activity-pulse {
   0%, 100% {
     opacity: 0.15;
-    transform: scale(1);
   }
   50% {
-    opacity: 0.25;
-    transform: scale(1.05);
+    opacity: 0.3;
   }
 }
 

@@ -187,3 +187,13 @@ The grid starts mostly obscured. As you explore, you reveal areas. This creates:
 2. Start with camera following (most immediate pain point)
 3. Iterate on activity visualization
 4. Add fog of war as final layer
+
+## Auto-saved State (2026-01-15 21:33)
+
+Recent commits:
+- feat: implement fog of war exploration system
+- feat: redesign activity visualization with glow-based system
+- feat: camera follows player during WASD movement
+
+**Note**: This entry was auto-generated before memory compaction.
+
