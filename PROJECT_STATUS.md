@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: None (ready for next task)
-**Branch**: feat/T-2025-005-username-password-auth (ready to merge)
-**Goal**: -
+**Active Task**: [[T-2025-006-node-creation-system]]
+**Branch**: feat/T-2025-006-node-creation-system
+**Goal**: Allow auth users to create new topic nodes on the grid
 
 ---
 
