@@ -333,51 +333,93 @@ body {
 .node:nth-child(5n) { animation-delay: -0.5s; }
 
 /* ============================================
-   Node Entry Animation
+   Severance-Style Transition
+   Clean, clinical, eerily calm
    ============================================ */
 
-@keyframes node-zoom-in {
-  0% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 8px var(--glow-faint));
-  }
-  50% {
-    transform: scale(1.5);
-    filter: drop-shadow(0 0 40px var(--glow-warm));
-  }
-  100% {
-    transform: scale(50);
-    filter: drop-shadow(0 0 100px var(--ember));
-    opacity: 0;
-  }
+.severance-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-@keyframes screen-fade-white {
+.severance-lines {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+
+.severance-line {
+  height: 0;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(245, 240, 232, 0.03) 20%,
+    rgba(245, 240, 232, 0.08) 50%,
+    rgba(245, 240, 232, 0.03) 80%,
+    transparent 100%
+  );
+  transform: scaleX(0);
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.severance-transition.active .severance-line {
+  height: 33.34vh;
+  transform: scaleX(1);
+}
+
+.severance-transition.active .severance-line:nth-child(1) {
+  transition-delay: 0s;
+  transform-origin: left;
+}
+
+.severance-transition.active .severance-line:nth-child(2) {
+  transition-delay: 0.1s;
+  transform-origin: right;
+}
+
+.severance-transition.active .severance-line:nth-child(3) {
+  transition-delay: 0.2s;
+  transform-origin: left;
+}
+
+.severance-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center,
+    rgba(245, 240, 232, 0.95) 0%,
+    rgba(245, 240, 232, 0.8) 30%,
+    rgba(219, 167, 111, 0.4) 60%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.severance-transition.active .severance-flash {
+  opacity: 1;
+  transition-delay: 0.5s;
+  animation: severance-pulse 0.6s ease-out 0.5s forwards;
+}
+
+@keyframes severance-pulse {
   0% {
     opacity: 0;
+    transform: scale(0.8);
   }
-  70% {
-    opacity: 0;
+  50% {
+    opacity: 1;
+    transform: scale(1);
   }
   100% {
     opacity: 1;
-    background: var(--void);
+    transform: scale(1.5);
+    background: rgba(13, 11, 10, 1);
   }
-}
-
-.node-entering {
-  animation: node-zoom-in 0.8s var(--ease-out-expo) forwards;
-  z-index: 1000;
-}
-
-.entering-node::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: var(--void);
-  animation: screen-fade-white 0.8s var(--ease-out-expo) forwards;
-  pointer-events: none;
-  z-index: 999;
 }
 
 /* Activity-based node styling */
@@ -417,6 +459,96 @@ body {
 
 .ui-stat:hover {
   color: var(--text-secondary);
+}
+
+/* ============================================
+   Room Entrance Animation - Severance Style
+   ============================================ */
+
+.room-entrance {
+  position: relative;
+}
+
+.room-entrance.materializing {
+  opacity: 0;
+}
+
+.room-entrance.materializing > * {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.room-entrance.materialized > * {
+  animation: room-element-appear 0.6s var(--ease-out-expo) forwards;
+}
+
+.room-entrance.materialized > *:nth-child(1) { animation-delay: 0s; }
+.room-entrance.materialized > *:nth-child(2) { animation-delay: 0.1s; }
+.room-entrance.materialized > *:nth-child(3) { animation-delay: 0.2s; }
+
+@keyframes room-element-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.room-scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(245, 240, 232, 0.015) 2px,
+    rgba(245, 240, 232, 0.015) 4px
+  );
+  animation: scanlines-fade 0.8s ease-out forwards;
+}
+
+@keyframes scanlines-fade {
+  0% {
+    opacity: 1;
+    background-size: 100% 100%;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Subtle CRT flicker on entrance */
+.room-entrance.materialized::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  background: radial-gradient(ellipse at center,
+    transparent 0%,
+    transparent 70%,
+    rgba(13, 11, 10, 0.3) 100%
+  );
+  animation: vignette-appear 1s ease-out forwards;
+}
+
+@keyframes vignette-appear {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* ============================================

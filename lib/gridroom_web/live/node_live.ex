@@ -57,7 +57,7 @@ defmodule GridroomWeb.NodeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-grid-base flex flex-col">
+    <div class="min-h-screen bg-grid-base flex flex-col room-entrance" phx-hook="RoomEntrance" id="room-container">
       <!-- Header -->
       <header class="border-b border-grid-line px-6 py-4 flex items-center gap-4">
         <a href={"/?from=#{@node.id}"} class="text-text-muted hover:text-text-primary transition-colors">
