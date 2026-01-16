@@ -36,12 +36,25 @@ defmodule Gridroom.Grok.NodeGenerator do
 
     with {:ok, trends} <- TrendFetcher.fetch_trends(),
          existing_nodes <- Grid.list_nodes(),
-         existing_titles <- MapSet.new(existing_nodes, & &1.title) do
-      # Filter out trends that already have nodes
+         existing_titles <- MapSet.new(existing_nodes, & &1.title),
+         # Also track lowercase titles for case-insensitive matching
+         existing_titles_lower <- MapSet.new(existing_nodes, &String.downcase(&1.title)) do
+
+      Logger.info("Found #{length(existing_nodes)} existing nodes, #{length(trends)} new trends")
+
+      # Filter out trends that already have nodes (case-insensitive)
       new_trends =
         trends
-        |> Enum.reject(fn trend -> MapSet.member?(existing_titles, trend.title) end)
+        |> Enum.reject(fn trend ->
+          lower_title = String.downcase(trend.title)
+          is_dupe = MapSet.member?(existing_titles, trend.title) ||
+                    MapSet.member?(existing_titles_lower, lower_title)
+          if is_dupe, do: Logger.debug("Skipping duplicate trend: #{trend.title}")
+          is_dupe
+        end)
         |> Enum.take(max_nodes)
+
+      Logger.info("After filtering: #{length(new_trends)} new trends to create")
 
       # Second LLM pass: refine descriptions and generate source TLDRs
       refined_trends =
