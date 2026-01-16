@@ -54,6 +54,7 @@ defmodule GridroomWeb.GridLive do
      |> assign(:can_enter_node, can_enter)
      |> assign(:dwelling_node, nil)
      |> assign(:dwell_progress, 0.0)
+     |> assign(:explored_areas, [player_pos])
      |> assign(:page_title, "Gridroom")}
   end
 
@@ -100,6 +101,9 @@ defmodule GridroomWeb.GridLive do
     else
       socket
     end
+
+    # Track explored areas (add new point if far enough from existing)
+    socket = maybe_add_explored_point(socket, new_player)
 
     {:noreply, assign(socket, :player, new_player)}
   end
@@ -242,6 +246,35 @@ defmodule GridroomWeb.GridLive do
             <stop offset="50%" stop-color="rgba(139, 115, 85, 0.1)" />
             <stop offset="100%" stop-color="rgba(139, 115, 85, 0.3)" />
           </linearGradient>
+
+          <!-- Fog of war - explored areas mask -->
+          <mask id="fog-mask">
+            <!-- Start with dark (unexplored) -->
+            <rect x="-5000" y="-5000" width="10000" height="10000" fill="#333" />
+            <!-- Player's current visibility -->
+            <circle cx={@player.x} cy={@player.y} r="150" fill="white" />
+            <!-- Explored areas with gradient falloff -->
+            <%= for point <- @explored_areas do %>
+              <circle cx={point.x} cy={point.y} r="120" fill="#aaa" />
+            <% end %>
+            <!-- Nodes glow through fog as beacons -->
+            <%= for node <- @nodes do %>
+              <% activity = Map.get(node, :activity, %{level: :dormant}) %>
+              <circle
+                cx={node.position_x}
+                cy={node.position_y}
+                r={fog_beacon_radius(activity.level)}
+                fill={fog_beacon_brightness(activity.level)}
+              />
+            <% end %>
+          </mask>
+
+          <!-- Fog overlay gradient -->
+          <radialGradient id="fog-gradient">
+            <stop offset="0%" stop-color="transparent" />
+            <stop offset="70%" stop-color="rgba(13, 11, 10, 0.6)" />
+            <stop offset="100%" stop-color="rgba(13, 11, 10, 0.85)" />
+          </radialGradient>
         </defs>
 
         <!-- Background layers -->
@@ -395,6 +428,15 @@ defmodule GridroomWeb.GridLive do
             </g>
           <% end %>
         </g>
+
+        <!-- Fog of war overlay -->
+        <rect
+          x="-5000" y="-5000"
+          width="10000" height="10000"
+          fill="rgba(13, 11, 10, 0.7)"
+          mask="url(#fog-mask)"
+          class="fog-layer"
+        />
       </svg>
 
       <!-- UI Overlay - Bottom Left -->
@@ -451,6 +493,26 @@ defmodule GridroomWeb.GridLive do
 
   defp distance_to_node(player, node) do
     :math.sqrt(:math.pow(player.x - node.position_x, 2) + :math.pow(player.y - node.position_y, 2))
+  end
+
+  @explore_sample_distance 80
+
+  defp maybe_add_explored_point(socket, player) do
+    explored = socket.assigns.explored_areas
+
+    # Only add point if far enough from all existing points
+    should_add = Enum.all?(explored, fn point ->
+      dist = :math.sqrt(:math.pow(player.x - point.x, 2) + :math.pow(player.y - point.y, 2))
+      dist > @explore_sample_distance
+    end)
+
+    if should_add do
+      # Keep last 100 points to limit memory
+      new_explored = Enum.take([player | explored], 100)
+      assign(socket, :explored_areas, new_explored)
+    else
+      socket
+    end
   end
 
   defp check_node_proximity(socket, player) do
@@ -520,6 +582,17 @@ defmodule GridroomWeb.GridLive do
   defp node_opacity(:quiet), do: "0.7"
   defp node_opacity(:active), do: "0.85"
   defp node_opacity(:buzzing), do: "1.0"
+
+  # Fog of war beacon settings (how much nodes glow through fog)
+  defp fog_beacon_radius(:dormant), do: "20"
+  defp fog_beacon_radius(:quiet), do: "35"
+  defp fog_beacon_radius(:active), do: "50"
+  defp fog_beacon_radius(:buzzing), do: "70"
+
+  defp fog_beacon_brightness(:dormant), do: "#444"
+  defp fog_beacon_brightness(:quiet), do: "#666"
+  defp fog_beacon_brightness(:active), do: "#999"
+  defp fog_beacon_brightness(:buzzing), do: "#ccc"
 
   defp truncate_title(title, max_length) do
     if String.length(title) > max_length do
