@@ -22,14 +22,16 @@ defmodule GridroomWeb.GridLive do
     # Load initial nodes with activity
     nodes = Grid.list_nodes_with_activity()
 
+    # Start player in a safe spot (not on top of a node)
     {:ok,
      socket
      |> assign(:user, user)
      |> assign(:nodes, nodes)
-     |> assign(:player, %{x: 0, y: 0})
-     |> assign(:viewport, %{x: 0, y: 0, zoom: 1.0})
+     |> assign(:player, %{x: -50, y: -50})
+     |> assign(:viewport, %{x: -50, y: -50, zoom: 1.0})
      |> assign(:users, %{})
      |> assign(:entering_node, nil)
+     |> assign(:can_enter_node, false)
      |> assign(:page_title, "Gridroom")}
   end
 
@@ -58,8 +60,12 @@ defmodule GridroomWeb.GridLive do
     user = socket.assigns.user
     Presence.update_position(self(), user, new_player.x, new_player.y)
 
-    # Check for node proximity
-    socket = check_node_proximity(socket, new_player)
+    # Enable node entry after first movement (grace period)
+    socket = if socket.assigns.can_enter_node do
+      check_node_proximity(socket, new_player)
+    else
+      assign(socket, :can_enter_node, true)
+    end
 
     {:noreply, assign(socket, :player, new_player)}
   end
