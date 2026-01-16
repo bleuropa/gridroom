@@ -7,17 +7,14 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-004-grid-ux-polish]] - Camera, fog of war, activity viz
-**Branch**: feat/T-2025-004-grid-ux-polish
-**Goal**: Camera following, fog of war, activity visualization improvements
+No active task - ready to start [[T-2025-005-username-password-auth]]
 
-**Recent Progress**:
-- WASD/Arrow key player movement
-- Dwell mechanic for node entry (1.5s to enter)
-- Visual progress ring while dwelling
-- Fluid ripple transitions when entering nodes
-- Activity tracking on nodes
-- Return positioning (spawn near last node)
+**Recent Progress (T-2025-004)**:
+- Camera following player during WASD
+- Player as light source (nodes dim with distance)
+- Active nodes self-illuminate
+- Atmospheric background (particles, stars, grid glows)
+- Refined node styling with type-based colors
 
 ---
 
@@ -31,18 +28,15 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-004-grid-ux-polish]] - Camera, lighting, activity viz
 - Dwell mechanic with visual progress ring
 - Fluid ripple transition animations
-- WASD movement independent of viewport
 
 ---
 
 ## Open Questions / Blockers
 
-- Camera follow speed - how fast/slow feels right?
-- Fog of war persistence - session vs permanent?
-- Activity thresholds - what defines "active"?
-- Can you see activity through fog?
+- None currently
 
 ---
 
@@ -53,15 +47,6 @@
 - **No streaming**: Focus on interaction layer only
 - **Anonymous first**: Session-based identity, optional accounts later
 - **SVG rendering**: Using SVG for grid, nodes, and user glyphs
-
----
-
-## Task Breakdown (T-2025-004 Planning)
-
-**T-2025-004**: Grid UX Polish
-- [ ] Camera following player during WASD
-- [ ] Fog of war system
-- [ ] Activity visualization redesign
 
 ---
 
