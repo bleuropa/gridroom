@@ -102,97 +102,379 @@
 /* This file is for your main application CSS */
 
 /* ============================================
-   GRIDROOM - Severance meets Fantasy Tavern
+   GRIDROOM - The Liminal Space
+   A place between places. Severance meets hearth.
    ============================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;500&family=JetBrains+Mono:wght@300;400&family=Space+Grotesk:wght@300;400;500&display=swap');
+
 :root {
-  /* Base colors - Severance's muted palette */
-  --grid-base: #1a1815;
-  --grid-surface: #252220;
-  --grid-line: rgba(139, 115, 85, 0.15);
+  /* Deep foundation - like stone walls at night */
+  --void: #0d0b0a;
+  --abyss: #141210;
+  --stone: #1c1917;
+  --earth: #231f1c;
+  --bark: #2a2522;
 
-  /* Text colors */
+  /* Atmospheric layers */
+  --mist: rgba(232, 224, 213, 0.03);
+  --fog: rgba(232, 224, 213, 0.06);
+  --haze: rgba(232, 224, 213, 0.12);
+
+  /* Grid structure - barely visible, like old maps */
+  --grid-faint: rgba(139, 115, 85, 0.04);
+  --grid-subtle: rgba(139, 115, 85, 0.08);
+  --grid-visible: rgba(139, 115, 85, 0.15);
+
+  /* Text hierarchy - parchment tones */
+  --text-bright: #f5f0e8;
   --text-primary: #e8e0d5;
-  --text-secondary: #b8a99a;
-  --text-muted: #6b5d52;
+  --text-secondary: #c4b8a8;
+  --text-tertiary: #8a7d6d;
+  --text-ghost: #5a4f42;
 
-  /* Accent colors - warm tavern glow */
-  --accent-warm: #d4a574;
-  --accent-gold: #c9a962;
-  --accent-ember: #b87333;
+  /* Warm ember palette - candlelit tavern */
+  --ember-bright: #f4c896;
+  --ember: #dba76f;
+  --ember-deep: #c4915a;
+  --amber: #b8860b;
+  --rust: #8b4513;
 
-  /* Cool accents for structure */
-  --accent-cool: #7a8b9a;
+  /* Cool counterpoint - moonlight through window */
+  --silver: #a8b2bc;
+  --steel: #6b7a8a;
+  --slate: #4a5568;
+
+  /* Node type colors */
+  --node-discussion: #c9a962;
+  --node-question: #7eb8da;
+  --node-debate: #d4756a;
+  --node-quiet: #8b9a7d;
+
+  /* Glows and effects */
+  --glow-warm: rgba(219, 167, 111, 0.4);
+  --glow-soft: rgba(219, 167, 111, 0.15);
+  --glow-faint: rgba(219, 167, 111, 0.08);
+
+  /* Timing */
+  --ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-in-out-sine: cubic-bezier(0.37, 0, 0.63, 1);
 }
 
-/* Background */
-.bg-grid-base { background-color: var(--grid-base); }
-.bg-grid-surface { background-color: var(--grid-surface); }
+/* ============================================
+   Typography
+   ============================================ */
 
-/* Borders */
-.border-grid-line { border-color: var(--grid-line); }
+body {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--void);
+  color: var(--text-primary);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-/* Text */
+.font-serif {
+  font-family: 'Crimson Pro', Georgia, serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.9em;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.bg-grid-base { background-color: var(--void); }
+.bg-grid-surface { background-color: var(--stone); }
+.border-grid-line { border-color: var(--grid-visible); }
 .text-text-primary { color: var(--text-primary); }
 .text-text-secondary { color: var(--text-secondary); }
-.text-text-muted { color: var(--text-muted); }
+.text-text-muted { color: var(--text-ghost); }
+.bg-accent-warm { background-color: var(--ember); }
+.text-accent-warm { color: var(--ember); }
 
-/* Accents */
-.bg-accent-warm { background-color: var(--accent-warm); }
-.text-accent-warm { color: var(--accent-warm); }
+/* ============================================
+   The Grid Canvas
+   ============================================ */
 
-/* Body defaults */
-body {
-  background-color: var(--grid-base);
-  color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+#grid-container {
+  background:
+    /* Subtle noise texture */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"),
+    /* Radial gradient - center warmth */
+    radial-gradient(ellipse 80% 60% at 50% 50%, var(--earth) 0%, var(--abyss) 50%, var(--void) 100%);
+  background-blend-mode: overlay, normal;
 }
 
-/* SVG node styling */
+#grid-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, transparent 0%, var(--void) 70%);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* ============================================
+   SVG Nodes - The Topic Markers
+   ============================================ */
+
 .node {
-  transition: transform 0.2s ease, filter 0.2s ease;
+  cursor: pointer;
+  transition: all 0.4s var(--ease-out-expo);
+  filter: drop-shadow(0 0 8px var(--glow-faint));
 }
 
 .node:hover {
-  filter: brightness(1.2);
+  filter: drop-shadow(0 0 20px var(--glow-warm)) brightness(1.15);
+  transform: scale(1.08);
 }
 
-/* Smooth animations */
+.node-shape {
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.node-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  fill: var(--text-secondary);
+  text-shadow: 0 2px 8px var(--void);
+}
+
+/* ============================================
+   User Glyphs - Abstract Presence
+   ============================================ */
+
+.user-glyph {
+  filter: drop-shadow(0 0 6px currentColor);
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.user-glyph-self {
+  filter: drop-shadow(0 0 12px var(--ember));
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px var(--glow-soft));
+    opacity: 0.9;
+  }
+  50% {
+    filter: drop-shadow(0 0 16px var(--glow-warm));
+    opacity: 1;
+  }
+}
+
 @keyframes breathe {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
 }
 
-.animate-breathe {
-  animation: breathe 3s ease-in-out infinite;
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(2px, -2px); }
+  50% { transform: translate(-1px, 1px); }
+  75% { transform: translate(1px, 2px); }
 }
 
-/* Scrollbar styling */
+.animate-float { animation: float 6s var(--ease-in-out-sine) infinite; }
+.animate-pulse-glow { animation: pulse-glow 3s var(--ease-in-out-sine) infinite; }
+.animate-breathe { animation: breathe 4s var(--ease-in-out-sine) infinite; }
+.animate-drift { animation: drift 20s linear infinite; }
+
+/* Stagger animations for organic feel */
+.node:nth-child(odd) { animation-delay: -1s; }
+.node:nth-child(3n) { animation-delay: -2s; }
+.node:nth-child(5n) { animation-delay: -0.5s; }
+
+/* ============================================
+   UI Overlays
+   ============================================ */
+
+.ui-overlay {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-ghost);
+}
+
+.ui-stat {
+  color: var(--text-tertiary);
+  transition: color 0.3s ease;
+}
+
+.ui-stat:hover {
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   Room View Styling
+   ============================================ */
+
+.room-header {
+  background: linear-gradient(to bottom, var(--stone), transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.room-title {
+  font-family: 'Crimson Pro', serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  color: var(--text-bright);
+  letter-spacing: 0.02em;
+}
+
+.room-description {
+  font-family: 'Crimson Pro', serif;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--text-tertiary);
+}
+
+/* Message bubbles */
+.message-bubble {
+  background: var(--bark);
+  border: 1px solid var(--grid-subtle);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.message-bubble:hover {
+  border-color: var(--grid-visible);
+  background: var(--earth);
+}
+
+.message-own {
+  background: linear-gradient(135deg, rgba(219, 167, 111, 0.15), rgba(219, 167, 111, 0.08));
+  border-color: rgba(219, 167, 111, 0.2);
+}
+
+.message-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-ghost);
+}
+
+/* Input area */
+.chat-input {
+  background: var(--stone);
+  border: 1px solid var(--grid-subtle);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.chat-input::placeholder {
+  color: var(--text-ghost);
+  font-style: italic;
+}
+
+.chat-input:focus {
+  border-color: var(--ember-deep);
+  box-shadow: 0 0 0 3px var(--glow-faint), inset 0 1px 2px rgba(0,0,0,0.2);
+  outline: none;
+}
+
+.speak-button {
+  background: linear-gradient(135deg, var(--ember) 0%, var(--ember-deep) 100%);
+  color: var(--void);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 12px;
+  border-radius: 10px;
+  transition: all 0.3s var(--ease-out-expo);
+  box-shadow: 0 4px 12px var(--glow-soft);
+}
+
+.speak-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px var(--glow-warm);
+}
+
+.speak-button:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   Scrollbar
+   ============================================ */
+
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--grid-base);
+  background: var(--abyss);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--grid-line);
-  border-radius: 3px;
+  background: var(--bark);
+  border-radius: 4px;
+  border: 2px solid var(--abyss);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--earth);
 }
 
-/* Focus states */
+/* ============================================
+   Selection & Focus
+   ============================================ */
+
+::selection {
+  background: var(--ember);
+  color: var(--void);
+}
+
 input:focus, textarea:focus, button:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent-warm);
 }
 
-/* Selection */
-::selection {
-  background: var(--accent-warm);
-  color: var(--grid-base);
+/* ============================================
+   Badge styling
+   ============================================ */
+
+.node-type-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.badge-discussion { background: rgba(201, 169, 98, 0.2); color: var(--node-discussion); }
+.badge-question { background: rgba(126, 184, 218, 0.2); color: var(--node-question); }
+.badge-debate { background: rgba(212, 117, 106, 0.2); color: var(--node-debate); }
+.badge-quiet { background: rgba(139, 154, 125, 0.2); color: var(--node-quiet); }
+
+/* ============================================
+   Responsive adjustments
+   ============================================ */
+
+@media (max-width: 768px) {
+  .room-title { font-size: 1.25rem; }
+  .ui-overlay { font-size: 10px; }
 }
