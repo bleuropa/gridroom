@@ -1,21 +1,22 @@
 ---
 type: task
 id: T-2025-018
-status: backlog
+status: in-progress
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
+started: 2026-01-16
 ---
 
 # Task: Grok API Integration for Trend-Based Node Creation
 
 ## Task Details
 **Task ID**: T-2025-018-grok-api-trend-nodes
-**Status**: Backlog
+**Status**: In Progress
 **Priority**: P1
 **Branch**: feat/T-2025-018-grok-api-trend-nodes
 **Created**: 2026-01-16
-**Started**:
+**Started**: 2026-01-16
 **Completed**:
 
 ## Description
