@@ -281,24 +281,34 @@ defmodule GridroomWeb.GridLive do
             style={"animation-delay: #{rem(index, 5) * -0.8}s;"}
             opacity={total_brightness}
           >
-            <!-- Activity rings - more rings = more activity -->
+            <!-- Base ring - subtle dashed orbit -->
+            <circle
+              r="32"
+              fill="none"
+              stroke="#4a4540"
+              stroke-width="0.5"
+              stroke-dasharray="2,6"
+              opacity={0.3 * total_brightness}
+            />
+
+            <!-- Secondary ring - ethereal outer boundary -->
+            <circle
+              r="38"
+              fill="none"
+              stroke="#3a3530"
+              stroke-width="0.3"
+              stroke-dasharray="1,8"
+              opacity={0.2 * total_brightness}
+            />
+
+            <!-- Activity rings - warm pulses for active nodes -->
             <%= if activity.level == :buzzing do %>
-              <circle r="50" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.3" opacity="0.15" class="animate-pulse-ring" />
-              <circle r="45" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.4" opacity="0.2" class="animate-pulse-ring" style="animation-delay: -0.3s;" />
+              <circle r="48" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.5" opacity="0.2" class="animate-pulse-ring" />
+              <circle r="42" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.6" opacity="0.25" class="animate-pulse-ring" style="animation-delay: -0.4s;" />
             <% end %>
             <%= if activity.level in [:active, :buzzing] do %>
-              <circle r="40" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.5" opacity="0.25" class="animate-pulse-ring" style="animation-delay: -0.6s;" />
+              <circle r="36" fill="none" stroke={node_type_color(node.node_type)} stroke-width="0.4" opacity="0.3" class="animate-pulse-ring" style="animation-delay: -0.8s;" />
             <% end %>
-
-            <!-- Outer glow ring - intensity based on activity -->
-            <circle
-              r="35"
-              fill="none"
-              stroke={node_type_color(node.node_type)}
-              stroke-width={activity_stroke_width(activity.level)}
-              opacity={activity_opacity(activity.level)}
-              class={if activity.level in [:active, :buzzing], do: "animate-breathe-fast", else: "animate-breathe"}
-            />
 
             <!-- Node shape with link -->
             <a href={~p"/node/#{node.id}"}>
@@ -323,12 +333,12 @@ defmodule GridroomWeb.GridLive do
               <circle cx="8" cy="18" r="1.2" fill="#dba76f" opacity="0.4" class="animate-ember" style="animation-delay: -1s;" />
             <% end %>
 
-            <!-- Label with backdrop -->
+            <!-- Label - brightness responds to proximity -->
             <text
               y="42"
               text-anchor="middle"
               class="node-label pointer-events-none"
-              fill={if activity.level == :dormant, do: "#6a5f52", else: "#c4b8a8"}
+              fill={text_color_for_brightness(total_brightness)}
               style="font-size: 11px; font-family: 'Space Grotesk', sans-serif;"
             >
               <%= truncate_title(node.title, 24) %>
@@ -530,16 +540,12 @@ defmodule GridroomWeb.GridLive do
   defp activity_base_brightness(:active), do: 0.3
   defp activity_base_brightness(:buzzing), do: 0.5
 
-  # Activity-based styling
-  defp activity_stroke_width(:dormant), do: "0.3"
-  defp activity_stroke_width(:quiet), do: "0.5"
-  defp activity_stroke_width(:active), do: "0.8"
-  defp activity_stroke_width(:buzzing), do: "1.2"
-
-  defp activity_opacity(:dormant), do: "0.1"
-  defp activity_opacity(:quiet), do: "0.2"
-  defp activity_opacity(:active), do: "0.35"
-  defp activity_opacity(:buzzing), do: "0.5"
+  # Text color based on brightness - darker when far, brighter when close
+  defp text_color_for_brightness(brightness) when brightness >= 0.8, do: "#e8e0d5"
+  defp text_color_for_brightness(brightness) when brightness >= 0.6, do: "#c4b8a8"
+  defp text_color_for_brightness(brightness) when brightness >= 0.4, do: "#8a7d6d"
+  defp text_color_for_brightness(brightness) when brightness >= 0.25, do: "#5a4f42"
+  defp text_color_for_brightness(_brightness), do: "#3a3530"
 
   # Glow-based activity indicators
   defp activity_inner_glow_radius(:active), do: "25"
