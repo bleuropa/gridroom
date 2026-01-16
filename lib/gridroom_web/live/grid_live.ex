@@ -46,6 +46,8 @@ defmodule GridroomWeb.GridLive do
      |> assign(:users, %{})
      |> assign(:entering_node, nil)
      |> assign(:can_enter_node, can_enter)
+     |> assign(:dwelling_node, nil)
+     |> assign(:dwell_progress, 0)
      |> assign(:page_title, "Gridroom")}
   end
 
@@ -109,6 +111,37 @@ defmodule GridroomWeb.GridLive do
   def handle_info(%Phoenix.Socket.Broadcast{event: "presence_diff", payload: diff}, socket) do
     users = Presence.handle_diff(socket.assigns.users, diff)
     {:noreply, assign(socket, :users, users)}
+  end
+
+  @impl true
+  def handle_info({:dwell_tick, node_id}, socket) do
+    dwelling = socket.assigns.dwelling_node
+    entering = socket.assigns.entering_node
+
+    cond do
+      # Already entering or no longer dwelling on this node
+      entering || dwelling != node_id ->
+        {:noreply, socket}
+
+      # Still dwelling - increment progress
+      true ->
+        new_progress = socket.assigns.dwell_progress + @dwell_tick_ms
+
+        if new_progress >= @dwell_time_ms do
+          # Dwell complete - trigger entry
+          {:noreply,
+           socket
+           |> assign(:entering_node, node_id)
+           |> assign(:dwelling_node, nil)
+           |> assign(:dwell_progress, 100)
+           |> push_event("confirm_enter_node", %{node_id: node_id})}
+        else
+          # Continue dwelling
+          Process.send_after(self(), {:dwell_tick, node_id}, @dwell_tick_ms)
+          progress_percent = round(new_progress / @dwell_time_ms * 100)
+          {:noreply, assign(socket, :dwell_progress, progress_percent)}
+        end
+    end
   end
 
   @impl true
@@ -303,6 +336,28 @@ defmodule GridroomWeb.GridLive do
           <circle r="16" fill="none" stroke={@user.glyph_color} stroke-width="0.5" opacity="0.3" class="animate-pulse-glow" />
           <!-- Movement indicator -->
           <circle r="20" fill="none" stroke={@user.glyph_color} stroke-width="0.3" opacity="0.15" stroke-dasharray="2,4" class="animate-spin-slow" />
+
+          <!-- Dwell progress ring -->
+          <%= if @dwelling_node && @dwell_progress > 0 do %>
+            <circle
+              r="24"
+              fill="none"
+              stroke="#dba76f"
+              stroke-width="2"
+              opacity="0.8"
+              stroke-dasharray={"#{@dwell_progress * 1.51} 151"}
+              stroke-linecap="round"
+              transform="rotate(-90)"
+              class="dwell-ring"
+            />
+            <circle
+              r="24"
+              fill="none"
+              stroke="#dba76f"
+              stroke-width="0.5"
+              opacity="0.3"
+            />
+          <% end %>
         </g>
       </svg>
 
@@ -360,21 +415,42 @@ defmodule GridroomWeb.GridLive do
   end
 
   @entry_threshold 40
+  @dwell_time_ms 1500
+  @dwell_tick_ms 50
 
   defp check_node_proximity(socket, player) do
     nodes = socket.assigns.nodes
     entering = socket.assigns.entering_node
+    dwelling = socket.assigns.dwelling_node
 
-    # Don't check if already entering a node
+    # Don't check if already entering
     if entering do
       socket
     else
-      case Enum.find(nodes, fn node -> distance_to_node(player, node) < @entry_threshold end) do
-        nil -> socket
-        node ->
+      nearby_node = Enum.find(nodes, fn node -> distance_to_node(player, node) < @entry_threshold end)
+
+      cond do
+        # Still on same node - continue dwelling
+        nearby_node && dwelling && nearby_node.id == dwelling ->
           socket
-          |> assign(:entering_node, node.id)
-          |> push_event("entering_node", %{node_id: node.id})
+
+        # Entered a new node's proximity - start dwelling
+        nearby_node && (is_nil(dwelling) || nearby_node.id != dwelling) ->
+          # Start dwell timer
+          Process.send_after(self(), {:dwell_tick, nearby_node.id}, @dwell_tick_ms)
+          socket
+          |> assign(:dwelling_node, nearby_node.id)
+          |> assign(:dwell_progress, 0)
+
+        # Left all nodes - cancel dwelling
+        is_nil(nearby_node) && dwelling ->
+          socket
+          |> assign(:dwelling_node, nil)
+          |> assign(:dwell_progress, 0)
+
+        # Not near any node and wasn't dwelling
+        true ->
+          socket
       end
     end
   end

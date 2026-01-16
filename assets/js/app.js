@@ -120,8 +120,8 @@ Hooks.GridCanvas = {
       }
     })
 
-    // Handle node entry animation - Fluid ripple transition
-    this.handleEvent("entering_node", ({node_id}) => {
+    // Handle confirmed node entry - Fluid ripple transition
+    this.handleEvent("confirm_enter_node", ({node_id}) => {
       // Create the transition overlay
       const overlay = document.createElement('div')
       overlay.className = 'fluid-transition'
@@ -140,10 +140,16 @@ Hooks.GridCanvas = {
         overlay.classList.add('active')
       })
 
-      // Navigate after animation
+      // Remove overlay and navigate after animation
       setTimeout(() => {
+        overlay.remove()
         this.pushEvent('navigate_to_node', { id: node_id })
       }, 1000)
+    })
+
+    // Cancel dwell when leaving node proximity
+    this.handleEvent("cancel_dwell", () => {
+      // Visual feedback handled by server updating dwell_progress
     })
   },
 

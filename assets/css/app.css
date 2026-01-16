@@ -261,6 +261,12 @@ body {
   filter: drop-shadow(0 0 12px var(--ember));
 }
 
+/* Dwell progress ring */
+.dwell-ring {
+  transition: stroke-dasharray 0.05s linear;
+  filter: drop-shadow(0 0 4px var(--ember));
+}
+
 /* ============================================
    Animations
    ============================================ */
