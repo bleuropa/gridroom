@@ -10,10 +10,13 @@ defmodule Gridroom.Grok.TrendFetcher do
   @doc """
   Fetch and parse trending topics.
 
+  Options:
+  - `:existing_nodes` - List of existing node maps to avoid duplicates
+
   Returns a list of trend maps with :title, :description, and :sources keys.
   """
-  def fetch_trends do
-    case Client.fetch_trends() do
+  def fetch_trends(opts \\ []) do
+    case Client.fetch_trends(opts) do
       {:ok, %{content: content}} ->
         trends = parse_trends(content)
         Logger.info("Parsed #{length(trends)} trends from Grok response")
@@ -129,10 +132,6 @@ defmodule Gridroom.Grok.TrendFetcher do
     |> String.trim()
     |> lumonify()
     |> truncate(200)
-  end
-
-  defp generate_placeholder_description(title) do
-    "A conversation about #{String.downcase(title)}. Join the discussion."
   end
 
   # Add a subtle Lumon/mysterious tone to descriptions

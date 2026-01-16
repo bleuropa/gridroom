@@ -12,13 +12,12 @@ defmodule Gridroom.Grok.NodeGenerator do
   require Logger
 
   # Minimum distance between nodes to avoid visual overlap
-  @min_node_distance 80
+  @min_node_distance 100
 
-  # Grid bounds for trend node placement
-  @trend_zone_min_x -400
-  @trend_zone_max_x 400
-  @trend_zone_min_y -300
-  @trend_zone_max_y 300
+  # Placement parameters for golden angle spiral
+  @base_radius 120
+  @radius_increment 35
+  @golden_angle 137.5077 * :math.pi() / 180  # ~2.399 radians
 
   @doc """
   Fetch trends and create nodes for them.
@@ -34,27 +33,14 @@ defmodule Gridroom.Grok.NodeGenerator do
     dry_run = Keyword.get(opts, :dry_run, false)
     skip_refinement = Keyword.get(opts, :skip_refinement, false)
 
-    with {:ok, trends} <- TrendFetcher.fetch_trends(),
-         existing_nodes <- Grid.list_nodes(),
-         existing_titles <- MapSet.new(existing_nodes, & &1.title),
-         # Also track lowercase titles for case-insensitive matching
-         existing_titles_lower <- MapSet.new(existing_nodes, &String.downcase(&1.title)) do
+    # Get existing nodes to pass to the LLM for context-aware deduplication
+    existing_nodes = Grid.list_nodes()
+    Logger.info("Found #{length(existing_nodes)} existing nodes")
 
-      Logger.info("Found #{length(existing_nodes)} existing nodes, #{length(trends)} new trends")
-
-      # Filter out trends that already have nodes (case-insensitive)
-      new_trends =
-        trends
-        |> Enum.reject(fn trend ->
-          lower_title = String.downcase(trend.title)
-          is_dupe = MapSet.member?(existing_titles, trend.title) ||
-                    MapSet.member?(existing_titles_lower, lower_title)
-          if is_dupe, do: Logger.debug("Skipping duplicate trend: #{trend.title}")
-          is_dupe
-        end)
-        |> Enum.take(max_nodes)
-
-      Logger.info("After filtering: #{length(new_trends)} new trends to create")
+    with {:ok, trends} <- TrendFetcher.fetch_trends(existing_nodes: existing_nodes) do
+      # Take only the max_nodes we want (LLM already avoided duplicates)
+      new_trends = Enum.take(trends, max_nodes)
+      Logger.info("Creating #{length(new_trends)} new trend nodes")
 
       # Second LLM pass: refine descriptions and generate source TLDRs
       refined_trends =
@@ -102,30 +88,52 @@ defmodule Gridroom.Grok.NodeGenerator do
   end
 
   @doc """
-  Find a position that doesn't overlap with existing nodes.
-  Uses random placement within the trend zone with collision detection.
+  Find a position using golden angle spiral placement.
+  Creates a natural, aesthetically pleasing distribution around the grid center.
   """
-  def find_available_position(existing_nodes, attempts \\ 0)
+  def find_available_position(existing_nodes, _attempts \\ 0) do
+    # Start from after the existing nodes on the spiral
+    start_index = length(existing_nodes)
 
-  def find_available_position(_existing_nodes, attempts) when attempts > 50 do
-    # Give up and return a random position
+    # Try positions along the golden angle spiral until we find one that doesn't overlap
+    find_spiral_position(existing_nodes, start_index, 0)
+  end
+
+  defp find_spiral_position(_existing_nodes, index, retries) when retries > 20 do
+    # Fallback: add some randomness to break out of collisions
+    base_pos = calculate_spiral_position(index + retries)
+    jitter = 30 + retries * 10
     %{
-      x: random_in_range(@trend_zone_min_x, @trend_zone_max_x),
-      y: random_in_range(@trend_zone_min_y, @trend_zone_max_y)
+      x: base_pos.x + (:rand.uniform() - 0.5) * jitter,
+      y: base_pos.y + (:rand.uniform() - 0.5) * jitter
     }
   end
 
-  def find_available_position(existing_nodes, attempts) do
-    candidate = %{
-      x: random_in_range(@trend_zone_min_x, @trend_zone_max_x),
-      y: random_in_range(@trend_zone_min_y, @trend_zone_max_y)
-    }
+  defp find_spiral_position(existing_nodes, index, retries) do
+    candidate = calculate_spiral_position(index + retries)
 
     if position_available?(candidate, existing_nodes) do
       candidate
     else
-      find_available_position(existing_nodes, attempts + 1)
+      find_spiral_position(existing_nodes, index, retries + 1)
     end
+  end
+
+  defp calculate_spiral_position(index) do
+    # Golden angle spiral: r = a + b*n, theta = n * golden_angle
+    # This creates a sunflower-like distribution
+    n = index + 1  # 1-indexed for nicer math
+    radius = @base_radius + @radius_increment * :math.sqrt(n)
+    angle = n * @golden_angle
+
+    # Add slight randomness to avoid perfect regularity
+    radius_jitter = radius * 0.1 * (:rand.uniform() - 0.5)
+    angle_jitter = 0.1 * (:rand.uniform() - 0.5)
+
+    %{
+      x: (radius + radius_jitter) * :math.cos(angle + angle_jitter),
+      y: (radius + radius_jitter) * :math.sin(angle + angle_jitter)
+    }
   end
 
   defp position_available?(candidate, existing_nodes) do
@@ -136,10 +144,6 @@ defmodule Gridroom.Grok.NodeGenerator do
 
   defp distance(p1, p2) do
     :math.sqrt(:math.pow(p1.x - p2.x, 2) + :math.pow(p1.y - p2.y, 2))
-  end
-
-  defp random_in_range(min, max) do
-    min + :rand.uniform() * (max - min)
   end
 
   # Infer node type from trend content

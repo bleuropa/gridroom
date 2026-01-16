@@ -80,13 +80,36 @@ defmodule Gridroom.Grok.Client do
 
   @doc """
   Fetch trending topics using X search.
+
+  Options:
+  - `:existing_nodes` - List of existing node maps with :title and :description to avoid duplicates
   """
-  def fetch_trends do
+  def fetch_trends(opts \\ []) do
+    existing_nodes = Keyword.get(opts, :existing_nodes, [])
+
+    existing_context =
+      if Enum.empty?(existing_nodes) do
+        ""
+      else
+        nodes_list =
+          existing_nodes
+          |> Enum.take(30)
+          |> Enum.map(fn node -> "- #{node.title}" end)
+          |> Enum.join("\n")
+
+        """
+
+        EXISTING TOPICS TO AVOID (do not suggest similar topics):
+        #{nodes_list}
+
+        """
+      end
+
     prompt = """
     Search X for trending topics and return 10-12 DIVERSE conversation starters.
 
     CRITICAL: You MUST use the search tool to find REAL trending content. Do NOT make up topics.
-
+    #{existing_context}
     MANDATORY DIVERSITY - You MUST include topics from ALL these categories (1-2 each):
     1. TECHNOLOGY (not just AI): gadgets, apps, internet culture, cybersecurity
     2. SCIENCE: space, health, environment, discoveries
