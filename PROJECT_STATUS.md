@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-010-enhanced-node-chat-viz]]
-**Branch**: feat/T-2025-010-enhanced-node-chat-viz
-**Goal**: Diamond presence row and spatial chat room experience
+**Active Task**: [[T-2025-014-user-profile-sidebar-friending]]
+**Branch**: feat/T-2025-014-user-profile-sidebar
+**Goal**: User profile sidebar with activity history and friending
 
 ---
 
