@@ -347,6 +347,44 @@ window.addEventListener("phx:clear_input", (e) => {
   }
 })
 
+// Feedback given event handler (affirm/dismiss)
+window.addEventListener("phx:feedback_given", (e) => {
+  const { message_id, type } = e.detail
+
+  // Find the message element and add visual feedback
+  const messageEl = document.querySelector(`[data-message-id="${message_id}"]`)
+  if (messageEl) {
+    // Add flash effect based on feedback type
+    const flashClass = type === "affirm" ? "affirm-flash" : "dismiss-flash"
+    messageEl.classList.add(flashClass)
+
+    // Remove the class after animation
+    setTimeout(() => {
+      messageEl.classList.remove(flashClass)
+    }, 600)
+  }
+
+  // Show toast notification
+  const toast = document.createElement('div')
+  toast.className = `feedback-toast feedback-toast-${type}`
+  toast.innerHTML = type === "affirm"
+    ? '<span class="text-[#8b9a7d]">✓</span> Affirmed'
+    : '<span class="text-[#d4756a]">✕</span> Dismissed'
+
+  document.body.appendChild(toast)
+
+  // Trigger animation
+  requestAnimationFrame(() => {
+    toast.classList.add('show')
+  })
+
+  // Remove toast after delay
+  setTimeout(() => {
+    toast.classList.remove('show')
+    setTimeout(() => toast.remove(), 300)
+  }, 1500)
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

@@ -833,7 +833,7 @@ defmodule GridroomWeb.NodeLive do
     assigns = assign(assigns, :is_own, is_own)
 
     ~H"""
-    <div class={"flex gap-4 #{if @is_own, do: "flex-row-reverse"}"}>
+    <div class={"flex gap-4 #{if @is_own, do: "flex-row-reverse"}"} data-message-id={@message.id}>
       <!-- User glyph with recognition indicator -->
       <div class="flex-shrink-0 relative">
         <svg width="36" height="36" viewBox="-12 -12 24 24">
