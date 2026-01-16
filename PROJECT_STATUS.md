@@ -7,17 +7,17 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-015-energy-reputation-system]]
-**Branch**: feat/T-2025-015-energy-reputation-system
-**Goal**: Design and implement Lumon-style energy/reputation system
+**Active Task**: [[T-2025-016-grid-canvas-navigation]]
+**Branch**: feat/T-2025-016-grid-canvas-navigation
+**Goal**: Improve canvas traversal - zoom out to see all nodes, select before entering
 
 ---
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation (zoom out, select vs enter)
-2. [[T-2025-013-share-nodes-via-url]] - Share nodes via URL (viral growth)
-3. [[T-2025-006-node-creation-system]] - User node creation
+1. [[T-2025-013-share-nodes-via-url]] - Share nodes via URL (viral growth)
+2. [[T-2025-006-node-creation-system]] - User node creation
+3. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
 
 ## Backlog (Prioritized)
 
@@ -45,9 +45,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-015-energy-reputation-system]] - Resonance system with affirm/dismiss feedback
 - [[T-2025-014-user-profile-sidebar-friending]] - User profile sidebar, friending, recognition highlighting
 - [[T-2025-005-username-password-auth]] - Username/password auth (no email)
-- [[T-2025-004-grid-ux-polish]] - Camera, lighting, activity viz
 
 ---
 
