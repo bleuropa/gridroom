@@ -2,7 +2,7 @@
 
 **Task**: [[T-2025-023-gemini-google-search-grounding]]
 **Created**: 2026-01-17
-**Status**: Planning
+**Status**: Completed
 
 ## Overview
 
@@ -99,9 +99,23 @@ POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-prev
 - Should Gemini prompts be different from Grok prompts?
 - How to handle duplicate topics between sources?
 
-## Next Steps
+## Completion Notes
 
-1. Run `/s T-2025-023` to start work
-2. Create Gemini client module
-3. Create folder fetcher
-4. Update scheduler
+**Completed**: 2026-01-17
+**Outcome**: Gemini Google Search grounding integrated as second topic source, plus scheduler cleanup and decay adjustments.
+
+### What was done:
+- Created `Gridroom.Gemini.Client` with Google Search grounding support
+- Created `Gridroom.Gemini.FolderFetcher` for topic extraction
+- Integrated into FolderScheduler (Grok + Gemini per folder)
+- Swapped model to `gemini-3-flash-preview`
+- Removed legacy 4-hour `Grok.Scheduler` (trending worker)
+- Updated decay thresholds: vaulted/gone after 5 days (was 14)
+- Added bootstrap fetch on first deploy (auto-populates if folders empty)
+
+### Answers to open questions:
+- Yes, added `source_api` field to nodes ("grok" or "gemini")
+- Gemini prompts adapted for grounding context
+- Duplicate avoidance via existing_nodes context in prompts
+
+All acceptance criteria met. Task closed.

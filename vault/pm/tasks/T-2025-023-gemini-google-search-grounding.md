@@ -1,22 +1,23 @@
 ---
 type: task
 id: T-2025-023
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-17
 updated: 2026-01-17
+completed: 2026-01-17
 ---
 
 # Task: Gemini Google Search Grounding for Folder Topics
 
 ## Task Details
 **Task ID**: T-2025-023
-**Status**: Todo
+**Status**: Completed
 **Priority**: P1 (High)
 **Branch**: feat/T-2025-023-gemini-google-search-grounding
 **Created**: 2026-01-17
 **Started**: 2026-01-17
-**Completed**:
+**Completed**: 2026-01-17
 
 ## Description
 Enhance the folder scheduler to fetch 3-4 additional topics per folder using Gemini's Google Search grounding feature. This diversifies topic sources beyond Grok/X-search, providing better coverage and real-time web information from Google Search.
@@ -28,13 +29,17 @@ Gemini's grounding with Google Search:
 - Works with gemini-3-flash-preview model
 
 ## Checklist
-- [ ] Add Gemini API client module
-- [ ] Create Gemini-specific folder fetcher
-- [ ] Update FolderScheduler to call both Grok and Gemini
-- [ ] Parse Gemini grounding metadata for sources/citations
-- [ ] Store source URLs from grounding chunks
-- [ ] Update config for Gemini API key and settings
-- [ ] Add rate limiting between Gemini calls
+- [x] Add Gemini API client module
+- [x] Create Gemini-specific folder fetcher
+- [x] Update FolderScheduler to call both Grok and Gemini
+- [x] Parse Gemini grounding metadata for sources/citations
+- [x] Store source URLs from grounding chunks
+- [x] Update config for Gemini API key and settings
+- [x] Add rate limiting between Gemini calls
+- [x] Swap model to gemini-3-flash-preview
+- [x] Remove legacy 4-hour trending scheduler
+- [x] Update decay threshold to 5 days (vaulting)
+- [x] Add bootstrap fetch on first deploy
 
 ## Technical Details
 ### Approach
@@ -82,11 +87,11 @@ See [[T-2025-023-context]] for detailed implementation notes.
 -
 
 ## Review Checklist
-- [ ] Code review completed
+- [x] Code review completed
 - [ ] Tests written and passing
-- [ ] Documentation updated
-- [ ] No debugger statements
-- [ ] Security considerations addressed
+- [x] Documentation updated
+- [x] No debugger statements
+- [x] Security considerations addressed
 
 ## Notes
 - Gemini 3 billing for Grounding with Google Search starts January 5, 2026

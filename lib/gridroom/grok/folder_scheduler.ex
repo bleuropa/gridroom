@@ -69,11 +69,27 @@ defmodule Gridroom.Grok.FolderScheduler do
     if Client.enabled?() do
       schedule_next_daily_run()
       Logger.info("Folder scheduler started - will run daily")
+
+      # Check if we need to bootstrap content (first deploy or no content today)
+      if needs_bootstrap?() do
+        Logger.info("No content for today - triggering immediate fetch")
+        send(self(), :bootstrap_fetch)
+      end
     else
       Logger.info("Folder scheduler disabled (Grok API disabled)")
     end
 
     {:ok, state}
+  end
+
+  # Check if any active folder has content for today
+  defp needs_bootstrap? do
+    today = Date.utc_today()
+
+    Folders.list_active_folders()
+    |> Enum.all?(fn folder ->
+      Folders.count_folder_nodes(folder.id, today) == 0
+    end)
   end
 
   @impl true
@@ -118,6 +134,13 @@ defmodule Gridroom.Grok.FolderScheduler do
     }
 
     {:reply, status, state}
+  end
+
+  @impl true
+  def handle_info(:bootstrap_fetch, state) do
+    Logger.info("Running bootstrap folder topic fetch...")
+    new_state = fetch_all_folders(state)
+    {:noreply, new_state}
   end
 
   @impl true

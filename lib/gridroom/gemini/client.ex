@@ -55,7 +55,7 @@ defmodule Gridroom.Gemini.Client do
       grounding = Keyword.get(opts, :grounding, true)
 
       body = build_request_body(prompt, grounding)
-      model = config()[:model] || "gemini-2.5-flash"
+      model = config()[:model] || "gemini-3-flash-preview"
 
       case make_request(model, body, timeout) do
         {:ok, %{status: 200, body: body}} ->

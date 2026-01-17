@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-023-gemini-google-search-grounding]]
-**Branch**: feat/T-2025-023-gemini-google-search-grounding
-**Goal**: Add Gemini Google Search grounding as second topic source for folders
+**Active Task**: None
+**Branch**: main
+**Goal**: Select next task from backlog
 
 ---
 
@@ -40,9 +40,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-023-gemini-google-search-grounding]] - Gemini Google Search grounding + decay/scheduler cleanup
 - [[T-2025-022-mdr-folder-system]] - MDR folder system for discussion categories (Sports, Gossip, Tech, etc.)
 - [[T-2025-021-persistent-dismissed-discussions]] - Persistent dismissed discussions + Innie Chat rebrand
-- [[T-2025-019-corridor-navigation]] - Lumon terminal emergence interface (pivoted from corridor to emergence-style discovery)
 
 ---
 
@@ -60,7 +60,7 @@
 - **Anonymous first**: Session-based identity, optional accounts
 - **Auth without email**: Username/password only, no password reset, accounts are disposable
 - **SVG rendering**: Using SVG for grid, nodes, and user glyphs
-- **Node decay**: Inactive nodes fade (1-7d quiet, 7-14d fading, 14d+ gone), activity revives them
+- **Node decay**: Inactive nodes fade (1-3d quiet, 3-5d fading, 5d+ vaulted/gone), activity revives them
 - **Glyph system**: 682 surreal designations (like "the goat" from Severance)
 
 ---

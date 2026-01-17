@@ -71,7 +71,7 @@ config :gridroom, :grok,
 # Gemini API configuration (Google Search grounding)
 config :gridroom, :gemini,
   api_key: System.get_env("GEMINI_API_KEY"),
-  model: "gemini-2.5-flash",
+  model: "gemini-3-flash-preview",
   enabled: false
 
 # Import environment specific config. This must remain at the bottom

@@ -53,10 +53,10 @@ defmodule Gridroom.Grid do
   defp calculate_activity_level(count) when count < 10, do: :active
   defp calculate_activity_level(_count), do: :buzzing
 
-  # Decay thresholds in days
+  # Decay thresholds in days (vaulted/gone after 5 days)
   @fresh_threshold_days 1
-  @quiet_threshold_days 7
-  @fading_threshold_days 14
+  @quiet_threshold_days 3
+  @fading_threshold_days 5
 
   @doc """
   Calculate the decay state of a node based on last_activity_at.
