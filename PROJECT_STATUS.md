@@ -1,15 +1,13 @@
 # Project Status
 
-**Last Updated**: 2026-01-16
+**Last Updated**: 2026-01-17
 **Project**: Gridroom
 
 ---
 
 ## Current Focus
 
-**Active Task**: [[T-2025-019-corridor-navigation]]
-**Branch**: feat/T-2025-019-corridor-navigation
-**Goal**: Severance-style first-person corridor navigation with organic branching
+No active task. Ready for next work item.
 
 ---
 
@@ -22,7 +20,6 @@
 ## Backlog (Prioritized)
 
 ### High Priority (P1)
-- [[T-2025-019-corridor-navigation]] - Corridor navigation system
 - [[E-2025-002-social-friends-system]] - Epic: Social & Friends System
 
 ### Medium Priority (P2)
@@ -41,9 +38,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-019-corridor-navigation]] - Lumon terminal emergence interface (pivoted from corridor to emergence-style discovery)
 - [[T-2025-018-grok-api-trend-nodes]] - Grok API integration for trend-based node generation
 - [[T-2025-017-resonance-presence-node-decay]] - Resonance meter, toasts, glyph effects, node decay
-- [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation (click to select, zoom limits)
 
 ---
 

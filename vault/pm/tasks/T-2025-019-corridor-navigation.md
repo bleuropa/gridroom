@@ -1,42 +1,48 @@
 ---
 type: task
 id: T-2025-019
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
-updated: 2026-01-16
+updated: 2026-01-17
+completed: 2026-01-17
 ---
 
-# Task: Lumon Terminal Stream Interface
+# Task: Lumon Terminal Emergence Interface
 
 ## Task Details
 **Task ID**: T-2025-019
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1 (High)
 **Branch**: feat/T-2025-019-corridor-navigation
 **Created**: 2026-01-16
+**Completed**: 2026-01-17
 
 ## Description
 
-Replace the current 2D canvas grid view with a Severance-inspired terminal interface. Discussions appear as scrolling text streams with varying font sizes based on activity. Users "bucket" discussions they want to follow and can quickly toggle between the stream view and active discussions.
+Replace the current 2D canvas grid view with a Severance-inspired terminal interface.
 
-Key experience goals:
-- Lumon terminal aesthetic (scrolling text, green-on-dark vibes)
-- Activity-driven discovery (font size = activity level)
-- Bucket system for queuing discussions (like browser tabs)
-- Seamless toggling between stream and discussion views
-- Always-on awareness of activity even when in a discussion
+**Design Pivot**: Originally planned as a scrolling text stream, the design evolved into an "emergence" interface where discussions appear one at a time from the void. Users curate through rejection - keeping what interests them, dismissing what doesn't.
+
+Key experience:
+- Lumon terminal aesthetic (eerie, deliberate, minimal)
+- Emergence-style discovery (one discussion at a time, fading in from void)
+- Bucket system for saving discussions (max 6)
+- Keybind-driven interaction
+- Heavy, smooth animations with blur effects
 
 ## Acceptance Criteria
-- [ ] Scrolling text stream showing all discussions
-- [ ] Font size reflects discussion activity level
-- [ ] Bucket slots at bottom (6 max) to save discussions
-- [ ] Click discussion in stream to add to bucket
-- [ ] Keybinds 1-6 to jump to bucketed discussions
-- [ ] Spacebar toggles stream view ↔ current discussion
-- [ ] Stream remains visible/updating when in discussion
-- [ ] Existing node creation flow works
-- [ ] Mobile-friendly (tap to bucket, swipe to toggle)
+- [x] Emergence-style discovery (discussions appear one at a time)
+- [x] Lumon aesthetic with subtle glow and heavy animations
+- [x] Bucket slots at bottom (6 max) to save discussions
+- [x] Space to keep current discussion, X to skip
+- [x] Keybinds 1-6 to enter bucketed discussions directly
+- [x] C to clear all buckets
+- [x] H for help overlay
+- [x] DB-backed bucket persistence (survives refresh)
+- [x] Decay filtering (gone discussions auto-removed from buckets)
+- [x] Empty state message when all topics reviewed
+- [x] Existing node creation accessible via N key
 
 ## Technical Details
 ### Approach
