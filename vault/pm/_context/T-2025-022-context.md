@@ -2,7 +2,7 @@
 
 **Task**: [[T-2025-022-mdr-folder-system]]
 **Created**: 2026-01-17
-**Status**: Planning
+**Status**: In Progress
 
 ## Overview
 
