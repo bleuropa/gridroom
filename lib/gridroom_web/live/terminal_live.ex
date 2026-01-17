@@ -44,8 +44,9 @@ defmodule GridroomWeb.TerminalLive do
      |> assign(:logged_in, user && user.username != nil)
      |> assign(:queue, nodes)  # Remaining nodes to show
      |> assign(:current, nil)  # Currently visible discussion
-     |> assign(:current_state, :void)  # :void, :emerging, :visible, :dismissing
+     |> assign(:current_state, :void)  # :void, :emerging, :visible, :keeping, :skipping
      |> assign(:buckets, [])  # Saved discussions (max 6)
+     |> assign(:new_bucket_index, nil)  # Track newly added bucket for animation
      |> assign(:active_bucket, nil)  # Currently viewing bucket index
      |> assign(:view_mode, :discover)  # :discover or :viewing
      |> assign(:drift_seed, :rand.uniform(1000))  # For drift variation
@@ -94,6 +95,11 @@ defmodule GridroomWeb.TerminalLive do
 
   @impl true
   def handle_info({:resonance_changed, _}, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info(:clear_new_bucket, socket) do
+    {:noreply, assign(socket, :new_bucket_index, nil)}
+  end
 
   # Keybinds
   @impl true
@@ -218,13 +224,17 @@ defmodule GridroomWeb.TerminalLive do
     buckets = socket.assigns.buckets
 
     if length(buckets) < 6 do
+      new_index = length(buckets)
       new_buckets = buckets ++ [current]
       # Longer delay for keep animation - savoring the moment
       Process.send_after(self(), :dismiss_complete, 800)
+      # Clear new bucket animation after it completes
+      Process.send_after(self(), :clear_new_bucket, 1000)
 
       {:noreply,
        socket
        |> assign(:buckets, new_buckets)
+       |> assign(:new_bucket_index, new_index)
        |> assign(:current_state, :keeping)}
     else
       # Buckets full - flash indicator?
@@ -271,10 +281,14 @@ defmodule GridroomWeb.TerminalLive do
             phx-click="view_bucket"
             phx-value-index={index}
             class={[
-              "w-8 h-8 rounded-full border transition-all duration-300 flex items-center justify-center text-xs font-mono",
+              "w-8 h-8 rounded-full border flex items-center justify-center text-xs font-mono",
+              if(@new_bucket_index == index,
+                do: "bucket-new-glow",
+                else: "transition-all duration-300"
+              ),
               if(@active_bucket == index,
                 do: "border-[#8b9a7d] bg-[#8b9a7d]/20 text-[#8b9a7d]",
-                else: "border-[#2a2522] text-[#3a3530] hover:border-[#5a4f42] hover:text-[#5a4f42]"
+                else: "border-[#8b9a7d]/60 text-[#8b9a7d]/80 hover:border-[#8b9a7d] hover:text-[#8b9a7d]"
               )
             ]}
             title={bucket.title}
