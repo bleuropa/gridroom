@@ -143,6 +143,15 @@ defmodule GridroomWeb.TerminalLive do
   # Keybinds - always responsive, no waiting
   @impl true
   def handle_event("keydown", %{"key" => key}, socket) do
+    # Close help on any key press
+    if socket.assigns.show_help do
+      {:noreply, assign(socket, :show_help, false)}
+    else
+      handle_keydown(key, socket)
+    end
+  end
+
+  defp handle_keydown(key, socket) do
     has_current? = socket.assigns.current != nil
     in_discover? = socket.assigns.view_mode == :discover
     can_act? = socket.assigns.current_state in [:emerging, :present]
