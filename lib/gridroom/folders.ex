@@ -157,7 +157,7 @@ defmodule Gridroom.Folders do
         end
 
       refined = if progress, do: progress.refined_count, else: 0
-      completed? = progress && progress.completed_at != nil
+      completed? = progress != nil and progress.completed_at != nil
 
       %{
         folder: folder,

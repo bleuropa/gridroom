@@ -141,14 +141,20 @@ defmodule GridroomWeb.TerminalLive do
          |> assign(:queue, rest)
          |> assign(:drift_seed, :rand.uniform(1000))}
 
-      # Queue empty - check if folder is complete
+      # Queue empty - check if folder is complete (only if there were topics to refine)
       socket.assigns.view_mode == :discover and Enum.empty?(queue) and socket.assigns.active_folder != nil ->
-        # Folder complete! Show wellness message
-        folder = socket.assigns.active_folder.folder
-        {:noreply,
-         socket
-         |> assign(:show_completion, true)
-         |> assign(:completion_message, folder.completion_message)}
+        folder_data = socket.assigns.active_folder
+        # Only show completion if the folder had topics (total > 0) and user refined them
+        if folder_data.total > 0 and folder_data.refined > 0 do
+          folder = folder_data.folder
+          {:noreply,
+           socket
+           |> assign(:show_completion, true)
+           |> assign(:completion_message, folder.completion_message)}
+        else
+          # Empty folder - just stay in void state
+          {:noreply, socket}
+        end
 
       true ->
         {:noreply, socket}
@@ -199,8 +205,17 @@ defmodule GridroomWeb.TerminalLive do
   # Keybinds
   @impl true
   def handle_event("keydown", %{"key" => key}, socket) do
+    folders = socket.assigns.folders
+
     cond do
-      # Close completion message on any key
+      # Arrow keys work even during completion to switch folders
+      socket.assigns.show_completion and key == "ArrowLeft" and length(folders) > 1 ->
+        switch_folder(socket, :prev)
+
+      socket.assigns.show_completion and key == "ArrowRight" and length(folders) > 1 ->
+        switch_folder(socket, :next)
+
+      # Other keys dismiss completion message
       socket.assigns.show_completion ->
         handle_completion_dismiss(socket)
 
@@ -379,7 +394,12 @@ defmodule GridroomWeb.TerminalLive do
       Process.send_after(self(), :emerge_next, @emerge_delay_ms)
       {:noreply, socket}
     else
-      {:noreply, socket}
+      # If clicking on current folder and showing completion, dismiss it
+      if socket.assigns.show_completion do
+        {:noreply, socket |> assign(:show_completion, false) |> assign(:completion_message, nil)}
+      else
+        {:noreply, socket}
+      end
     end
   end
 
