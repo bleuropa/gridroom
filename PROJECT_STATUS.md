@@ -15,13 +15,14 @@
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
-2. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
-3. [[T-2025-011-portal-system]] - Portal system with energy cost
+1. [[T-2025-019-corridor-navigation]] - Corridor navigation system (Severance-style)
+2. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
+3. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
 
 ## Backlog (Prioritized)
 
 ### High Priority (P1)
+- [[T-2025-019-corridor-navigation]] - Corridor navigation system
 - [[E-2025-002-social-friends-system]] - Epic: Social & Friends System
 
 ### Medium Priority (P2)
