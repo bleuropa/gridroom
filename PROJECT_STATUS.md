@@ -9,6 +9,8 @@
 
 No active task. Ready for next priority.
 
+**Planned**: [[T-2025-022-mdr-folder-system]] - MDR Folder System for Discussion Categories
+
 ---
 
 ## Next Up (Top 3 Priorities)
