@@ -45,6 +45,10 @@ defmodule GridroomWeb.NodeLive do
     end
   end
 
+  # Initial message load limit and pagination batch size
+  @initial_messages_limit 50
+  @load_more_limit 25
+
   defp mount_node(socket, node, user, id, logged_in) do
     # Subscribe to messages and presence for this node
     if connected?(socket) do
@@ -56,9 +60,13 @@ defmodule GridroomWeb.NodeLive do
       Connections.record_visit(user, id)
     end
 
-    # Load messages and current presence
-    messages = Grid.list_messages_for_node(id, limit: 100)
+    # Load initial messages using paginated query
+    messages = Grid.list_messages_paginated(id, limit: @initial_messages_limit)
     present_users = if connected?(socket), do: presence_to_map(Presence.list_users_in_node(id)), else: %{}
+
+    # Track pagination state
+    oldest_message_id = List.first(messages) && List.first(messages).id
+    has_more_messages = length(messages) == @initial_messages_limit
 
     # Load feedback state for the current user
     cooldown_users = Resonance.users_on_cooldown(user.id)
@@ -79,7 +87,10 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:node, node)
      |> assign(:user, user)
      |> assign(:logged_in, logged_in)
-     |> assign(:messages, messages)
+     |> stream(:messages, messages)
+     |> assign(:oldest_message_id, oldest_message_id)
+     |> assign(:has_more_messages, has_more_messages)
+     |> assign(:loading_more, false)
      |> assign(:present_users, present_users)
      |> assign(:remembered_user_ids, remembered_user_ids)
      |> assign(:cooldown_users, cooldown_users)
@@ -95,7 +106,8 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:selected_user_activity, [])
      |> assign(:is_remembered, false)
      |> assign(:kick_warning, nil)
-     |> assign(:show_highlights, false)}
+     |> assign(:show_highlights, false)
+     |> assign(:highlighted_messages, [])}
   end
 
   # Load buckets from user's saved IDs, filtering out gone nodes
@@ -145,6 +157,45 @@ defmodule GridroomWeb.NodeLive do
   end
 
   def handle_event("send_message", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("load_more_messages", _params, socket) do
+    # Only load if there are more messages and we're not already loading
+    if socket.assigns.has_more_messages and not socket.assigns.loading_more do
+      socket = assign(socket, :loading_more, true)
+
+      older_messages =
+        Grid.list_messages_paginated(
+          socket.assigns.node.id,
+          limit: @load_more_limit,
+          before_id: socket.assigns.oldest_message_id
+        )
+
+      if Enum.empty?(older_messages) do
+        {:noreply,
+         socket
+         |> assign(:has_more_messages, false)
+         |> assign(:loading_more, false)}
+      else
+        # Insert older messages at the beginning of the stream
+        socket =
+          Enum.reduce(older_messages, socket, fn message, sock ->
+            stream_insert(sock, :messages, message, at: 0)
+          end)
+
+        new_oldest_id = List.first(older_messages).id
+        has_more = length(older_messages) == @load_more_limit
+
+        {:noreply,
+         socket
+         |> assign(:oldest_message_id, new_oldest_id)
+         |> assign(:has_more_messages, has_more)
+         |> assign(:loading_more, false)}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
 
   @impl true
   def handle_event("typing_start", _params, socket) do
@@ -277,12 +328,21 @@ defmodule GridroomWeb.NodeLive do
 
   @impl true
   def handle_event("show_highlights", _params, socket) do
-    {:noreply, assign(socket, :show_highlights, true)}
+    # Fetch top affirmed messages for the highlights overlay
+    highlighted = Grid.list_top_affirmed_messages(socket.assigns.node.id, limit: 5)
+
+    {:noreply,
+     socket
+     |> assign(:show_highlights, true)
+     |> assign(:highlighted_messages, highlighted)}
   end
 
   @impl true
   def handle_event("hide_highlights", _params, socket) do
-    {:noreply, assign(socket, :show_highlights, false)}
+    {:noreply,
+     socket
+     |> assign(:show_highlights, false)
+     |> assign(:highlighted_messages, [])}
   end
 
   @impl true
@@ -300,8 +360,8 @@ defmodule GridroomWeb.NodeLive do
 
   @impl true
   def handle_info({:new_message, message}, socket) do
-    messages = socket.assigns.messages ++ [message]
-    {:noreply, assign(socket, :messages, messages)}
+    # Append new message to stream (at the end, which is bottom of chat)
+    {:noreply, stream_insert(socket, :messages, message)}
   end
 
   @impl true
@@ -423,17 +483,29 @@ defmodule GridroomWeb.NodeLive do
 
       <!-- Messages area -->
       <div
-        id="messages"
+        id="messages-container"
         class="relative z-10 flex-1 overflow-y-auto px-6 py-4 min-h-0"
-        phx-hook="ScrollToBottom"
+        phx-hook="MessageStream"
       >
-        <%= if Enum.empty?(@messages) do %>
-          <div class="flex flex-col items-center justify-center h-full text-center">
-            <p class="text-[#4a4540] text-xs font-mono tracking-[0.2em] uppercase">awaiting input</p>
+        <!-- Load more indicator at top -->
+        <%= if @has_more_messages do %>
+          <div
+            id="load-more-trigger"
+            phx-hook="InfiniteScroll"
+            data-page-loading={@loading_more}
+            class="flex justify-center py-2"
+          >
+            <%= if @loading_more do %>
+              <span class="text-[#4a4540] text-[10px] font-mono tracking-widest uppercase animate-pulse">loading...</span>
+            <% else %>
+              <span class="text-[#3a3530] text-[10px] font-mono tracking-widest uppercase">scroll for more</span>
+            <% end %>
           </div>
-        <% else %>
-          <div class="space-y-3">
-            <%= for message <- @messages do %>
+        <% end %>
+
+        <div id="messages" phx-update="stream" class="space-y-3">
+          <%= for {dom_id, message} <- @streams.messages do %>
+            <div id={dom_id}>
               <.message_bubble
                 message={message}
                 current_user={@user}
@@ -441,9 +513,10 @@ defmodule GridroomWeb.NodeLive do
                 on_cooldown={MapSet.member?(@cooldown_users, message.user_id)}
                 feedback_type={Map.get(@feedback_given, message.id)}
               />
-            <% end %>
-          </div>
-        <% end %>
+            </div>
+          <% end %>
+        </div>
+
       </div>
 
       <!-- Bottom section: presence row + input -->
@@ -545,7 +618,7 @@ defmodule GridroomWeb.NodeLive do
 
       <!-- Highlights overlay (space held) -->
       <%= if @show_highlights do %>
-        <.highlights_overlay messages={highlighted_messages(@messages)} />
+        <.highlights_overlay messages={@highlighted_messages} />
       <% end %>
 
       <!-- Kick warning overlay -->
@@ -554,14 +627,6 @@ defmodule GridroomWeb.NodeLive do
       <% end %>
     </div>
     """
-  end
-
-  # Get top 5 most affirmed messages for highlights
-  defp highlighted_messages(messages) do
-    messages
-    |> Enum.filter(fn m -> (m.affirm_count || 0) > 0 end)
-    |> Enum.sort_by(fn m -> m.affirm_count || 0 end, :desc)
-    |> Enum.take(5)
   end
 
   defp highlights_overlay(assigns) do
