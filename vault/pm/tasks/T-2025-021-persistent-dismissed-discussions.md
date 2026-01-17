@@ -24,34 +24,35 @@ updated: 2026-01-16
 When users dismiss a discussion by clicking X, that dismissal should persist permanently. Currently dismissals are lost on page refresh or when buckets are cleared. Users should never see a discussion they've explicitly dismissed, regardless of session state.
 
 ## Acceptance Criteria
-- [ ] Dismissed discussion IDs stored in database (not session/local storage)
-- [ ] Dismissed discussions hidden from discovery/emergence UI
-- [ ] Dismissals persist across page refreshes
-- [ ] Dismissals persist across bucket clearing
-- [ ] Dismissals work for both anonymous (session) and authenticated users
-- [ ] Anonymous user dismissals migrate to account on login (optional)
-- [ ] Prevent bucketing same discussion in multiple buckets (enforce single-bucket per discussion)
+- [x] Dismissed discussion IDs stored in database (not session/local storage)
+- [x] Dismissed discussions hidden from discovery/emergence UI
+- [x] Dismissals persist across page refreshes
+- [x] Dismissals persist across bucket clearing
+- [x] Dismissals work for both anonymous (session) and authenticated users
+- [ ] Anonymous user dismissals migrate to account on login (optional - future)
+- [x] Prevent bucketing same discussion in multiple buckets (enforce single-bucket per discussion)
 
 ## Checklist
-- [ ] Design dismissal storage schema
-- [ ] Create migration for dismissed_discussions table
-- [ ] Add dismiss endpoint/handler
-- [ ] Update discovery query to exclude dismissed
-- [ ] Update emergence UI to hide dismissed
+- [x] Design dismissal storage schema
+- [x] Create migration for user_dismissed_nodes table
+- [x] Add dismiss context functions
+- [x] Update discovery query to exclude dismissed
+- [x] Update emergence UI to hide dismissed
 - [ ] Test persistence across refresh
 - [ ] Test persistence across bucket clear
 
 ## Technical Details
 ### Approach
-- Add `dismissed_discussions` table linking user/session to discussion IDs
-- Filter dismissed IDs in discovery/emergence queries
-- For anonymous users, tie to session ID
+- Added `user_dismissed_nodes` table linking user to dismissed node IDs
+- Filter dismissed IDs in emergence queue on mount
+- Anonymous users tracked via their user record (created from session_id)
+- Single-bucket enforcement via `cond` check in `add_to_buckets`
 
-### Files to Modify
-- `priv/repo/migrations/` - new migration
-- `lib/gridroom/discussions/` - dismissal context
-- `lib/gridroom_web/live/` - emergence/discovery LiveView
-- Database queries for discovery
+### Files Modified
+- `priv/repo/migrations/20260117020919_add_user_dismissed_nodes.exs` - new table
+- `lib/gridroom/accounts/user_dismissed_node.ex` - schema
+- `lib/gridroom/accounts.ex` - dismissal context functions + single-bucket check
+- `lib/gridroom_web/live/terminal_live.ex` - exclude dismissed from queue, persist on X
 
 ### Testing Required
 - [ ] Dismissal persists on refresh
