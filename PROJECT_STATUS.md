@@ -1,6 +1,6 @@
 # Project Status
 
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-01-16
 **Project**: Gridroom
 
 ---
@@ -13,9 +13,9 @@ No active task. Ready for next work item.
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
-2. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
-3. [[T-2025-011-portal-system]] - Portal system with energy cost
+1. [[T-2025-020-discussion-page-severance-redesign]] - Redesign discussion pages to match Severance terminal aesthetic
+2. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
+3. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
 
 ## Backlog (Prioritized)
 
