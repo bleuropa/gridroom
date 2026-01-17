@@ -769,23 +769,12 @@ defmodule GridroomWeb.NodeLive do
 
   attr :user, :map, required: true
   defp user_glyph(assigns) do
+    alias Gridroom.Accounts.User
+    color = User.glyph_color(assigns.user)
+    assigns = assign(assigns, :color, color)
+
     ~H"""
-    <%= case @user.glyph_shape do %>
-      <% "circle" -> %>
-        <circle r="10" fill={@user.glyph_color} />
-      <% "triangle" -> %>
-        <polygon points="0,-12 10.4,6 -10.4,6" fill={@user.glyph_color} />
-      <% "square" -> %>
-        <rect x="-8" y="-8" width="16" height="16" fill={@user.glyph_color} />
-      <% "diamond" -> %>
-        <polygon points="0,-10 10,0 0,10 -10,0" fill={@user.glyph_color} />
-      <% "hexagon" -> %>
-        <polygon points="8,0 4,6.9 -4,6.9 -8,0 -4,-6.9 4,-6.9" fill={@user.glyph_color} />
-      <% "pentagon" -> %>
-        <polygon points="0,-9 8.6,-2.8 5.3,7.3 -5.3,7.3 -8.6,-2.8" fill={@user.glyph_color} />
-      <% _ -> %>
-        <circle r="10" fill={@user.glyph_color || "#888"} />
-    <% end %>
+    <circle r="10" fill={@color} />
     """
   end
 
@@ -946,8 +935,9 @@ defmodule GridroomWeb.NodeLive do
   attr :user, :map, default: nil
   attr :is_own, :boolean, default: false
   defp message_glyph(assigns) do
-    user = assigns.user || %{glyph_shape: "circle", glyph_color: "#5a4f42"}
-    assigns = assign(assigns, :user, user)
+    alias Gridroom.Accounts.User
+    color = if assigns.user, do: User.glyph_color(assigns.user), else: "hsl(30, 20%, 35%)"
+    assigns = assign(assigns, :color, color)
 
     ~H"""
     <!-- Subtle glow for own messages -->
@@ -963,22 +953,7 @@ defmodule GridroomWeb.NodeLive do
       </defs>
     <% end %>
     <g filter={if @is_own, do: "url(#glyph-glow)"}>
-      <%= case @user.glyph_shape do %>
-        <% "circle" -> %>
-          <circle r="8" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "triangle" -> %>
-          <polygon points="0,-9 7.8,4.5 -7.8,4.5" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "square" -> %>
-          <rect x="-6" y="-6" width="12" height="12" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "diamond" -> %>
-          <polygon points="0,-8 8,0 0,8 -8,0" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "hexagon" -> %>
-          <polygon points="6,0 3,5.2 -3,5.2 -6,0 -3,-5.2 3,-5.2" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "pentagon" -> %>
-          <polygon points="0,-7 6.7,-2.2 4.1,5.7 -4.1,5.7 -6.7,-2.2" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% _ -> %>
-          <circle r="8" fill={@user.glyph_color || "#5a4f42"} opacity={if @is_own, do: "1", else: "0.85"} />
-      <% end %>
+      <circle r="8" fill={@color} opacity={if @is_own, do: "1", else: "0.85"} />
     </g>
     """
   end
@@ -1065,28 +1040,17 @@ defmodule GridroomWeb.NodeLive do
   # Highlight card for top affirmed messages
   attr :message, :map, required: true
   defp highlight_card(assigns) do
+    alias Gridroom.Accounts.User
+    color = if assigns.message.user, do: User.glyph_color(assigns.message.user), else: "hsl(30, 20%, 35%)"
+    assigns = assign(assigns, :glyph_color, color)
+
     ~H"""
     <div class="flex-shrink-0 w-72 bg-[#141210] border border-[#c9a962]/20 p-3 hover:border-[#c9a962]/40 transition-colors">
       <!-- Header with user and affirm count -->
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
           <svg width="16" height="16" viewBox="-8 -8 16 16">
-            <%= case @message.user && @message.user.glyph_shape do %>
-              <% "circle" -> %>
-                <circle r="5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "triangle" -> %>
-                <polygon points="0,-6 5.2,3 -5.2,3" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "square" -> %>
-                <rect x="-4" y="-4" width="8" height="8" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "diamond" -> %>
-                <polygon points="0,-5 5,0 0,5 -5,0" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "hexagon" -> %>
-                <polygon points="4,0 2,3.5 -2,3.5 -4,0 -2,-3.5 2,-3.5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "pentagon" -> %>
-                <polygon points="0,-5 4.8,-1.5 3,4 -3,4 -4.8,-1.5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% _ -> %>
-                <circle r="5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-            <% end %>
+            <circle r="5" fill={@glyph_color} />
           </svg>
           <span class="text-[10px] uppercase tracking-wider text-[#5a4f42]">
             <%= (@message.user && @message.user.username) || "Anonymous" %>

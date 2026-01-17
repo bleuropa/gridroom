@@ -55,21 +55,17 @@ defmodule Gridroom.Accounts do
   Optionally preserves glyph from an existing anonymous user.
   """
   def register_user(attrs, opts \\ []) do
-    # If an anonymous user is provided, inherit their glyph
+    alias Gridroom.Accounts.Glyphs
+
+    # If an anonymous user is provided, inherit their glyph_id
     attrs =
       case Keyword.get(opts, :anonymous_user) do
-        %User{glyph_shape: shape, glyph_color: color} ->
-          Map.merge(%{"glyph_shape" => shape, "glyph_color" => color}, attrs)
+        %User{glyph_id: glyph_id} when is_integer(glyph_id) ->
+          Map.merge(%{"glyph_id" => glyph_id}, attrs)
 
         _ ->
           # New user gets random glyph
-          Map.merge(
-            %{
-              "glyph_shape" => Enum.random(User.glyph_shapes()),
-              "glyph_color" => Enum.random(User.glyph_colors())
-            },
-            attrs
-          )
+          Map.merge(%{"glyph_id" => Glyphs.random_id()}, attrs)
       end
 
     %User{}

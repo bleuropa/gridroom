@@ -2,17 +2,18 @@ defmodule Gridroom.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Gridroom.Accounts.Glyphs
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
-
-  @glyph_shapes ~w(circle triangle square diamond hexagon pentagon)
-  @glyph_colors ~w(#D4A574 #8B7355 #A0522D #CD853F #DEB887 #BC8F8F)
 
   schema "users" do
     field :session_id, :string
     field :username, :string
     field :hashed_password, :string
     field :password, :string, virtual: true, redact: true
+    field :glyph_id, :integer
+    # Legacy fields - kept for backwards compatibility during migration
     field :glyph_shape, :string, default: "circle"
     field :glyph_color, :string, default: "#D4A574"
     field :resonance, :integer, default: 50
@@ -28,9 +29,9 @@ defmodule Gridroom.Accounts.User do
   """
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:session_id, :glyph_shape, :glyph_color])
+    |> cast(attrs, [:session_id, :glyph_id])
     |> validate_required([:session_id])
-    |> validate_inclusion(:glyph_shape, @glyph_shapes)
+    |> validate_number(:glyph_id, greater_than_or_equal_to: 0, less_than: Glyphs.count())
     |> unique_constraint(:session_id)
   end
 
@@ -39,7 +40,7 @@ defmodule Gridroom.Accounts.User do
   """
   def registration_changeset(user, attrs) do
     user
-    |> cast(attrs, [:username, :password, :glyph_shape, :glyph_color])
+    |> cast(attrs, [:username, :password, :glyph_id])
     |> validate_username()
     |> validate_password()
   end
@@ -94,13 +95,33 @@ defmodule Gridroom.Accounts.User do
   def new_with_random_glyph(session_id) do
     %__MODULE__{
       session_id: session_id,
-      glyph_shape: Enum.random(@glyph_shapes),
-      glyph_color: Enum.random(@glyph_colors)
+      glyph_id: Glyphs.random_id()
     }
   end
 
-  def glyph_shapes, do: @glyph_shapes
-  def glyph_colors, do: @glyph_colors
+  @doc """
+  Returns the glyph name for this user.
+  """
+  def glyph_name(%__MODULE__{glyph_id: glyph_id}) when is_integer(glyph_id) do
+    Glyphs.name(glyph_id)
+  end
+  def glyph_name(_), do: "unknown"
+
+  @doc """
+  Returns the display name for this user's glyph (e.g., "the goat", "specimen-alpha").
+  """
+  def glyph_display_name(%__MODULE__{glyph_id: glyph_id}) when is_integer(glyph_id) do
+    Glyphs.display_name(glyph_id)
+  end
+  def glyph_display_name(_), do: "unknown"
+
+  @doc """
+  Returns the glyph color for this user.
+  """
+  def glyph_color(%__MODULE__{glyph_id: glyph_id}) when is_integer(glyph_id) do
+    Glyphs.color(glyph_id)
+  end
+  def glyph_color(_), do: "hsl(30, 20%, 45%)"
 
   @doc """
   Changeset for updating bucket IDs.

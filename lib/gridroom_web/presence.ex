@@ -14,8 +14,8 @@ defmodule GridroomWeb.Presence do
   def track_user(pid, %User{} = user) do
     track(pid, @topic, user.id, %{
       user_id: user.id,
-      glyph_shape: user.glyph_shape,
-      glyph_color: user.glyph_color,
+      glyph_id: user.glyph_id,
+      glyph_color: User.glyph_color(user),
       x: 0,
       y: 0,
       joined_at: System.system_time(:second)
@@ -52,8 +52,9 @@ defmodule GridroomWeb.Presence do
     track(pid, node_topic(node_id), user.id, %{
       user_id: user.id,
       username: user.username,
-      glyph_shape: user.glyph_shape,
-      glyph_color: user.glyph_color,
+      glyph_id: user.glyph_id,
+      glyph_color: User.glyph_color(user),
+      glyph_name: User.glyph_display_name(user),
       resonance: user.resonance,
       typing: false,
       last_active: System.system_time(:second)

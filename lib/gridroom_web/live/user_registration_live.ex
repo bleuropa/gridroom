@@ -76,16 +76,19 @@ defmodule GridroomWeb.UserRegistrationLive do
         </div>
 
         <!-- Glyph preview -->
-        <%= if @anonymous_user do %>
+        <%= if @anonymous_user && @anonymous_user.glyph_id do %>
           <div class="flex justify-center mb-6 boot-line-5">
             <div class="text-center p-4 border border-[#2a2522] bg-[#1a1714]/50">
-              <div class="w-10 h-10 mx-auto mb-2 flex items-center justify-center">
+              <div class="w-10 h-10 mx-auto mb-3 flex items-center justify-center">
                 <svg viewBox="-20 -20 40 40" class="w-full h-full">
-                  <circle r="10" fill={@anonymous_user.glyph_color} opacity="0.9" />
+                  <circle r="10" fill={Gridroom.Accounts.User.glyph_color(@anonymous_user)} opacity="0.9" />
                 </svg>
               </div>
-              <p class="text-[#4a4540] text-[9px] font-mono tracking-wider uppercase">
-                Assigned Glyph
+              <p class="text-[#6a6258] text-[10px] font-mono">
+                <%= Gridroom.Accounts.User.glyph_display_name(@anonymous_user) %>
+              </p>
+              <p class="text-[#3a3530] text-[8px] font-mono mt-1 tracking-wider uppercase">
+                Assigned Designation
               </p>
             </div>
           </div>
