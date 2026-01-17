@@ -27,6 +27,13 @@ if api_key = System.get_env("XAI_API_KEY") do
     enabled: System.get_env("GROK_ENABLED", "false") == "true"
 end
 
+# Gemini API configuration (runtime)
+if api_key = System.get_env("GEMINI_API_KEY") do
+  config :gridroom, :gemini,
+    api_key: api_key,
+    enabled: System.get_env("GEMINI_ENABLED", "false") == "true"
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

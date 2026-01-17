@@ -68,6 +68,12 @@ config :gridroom, :grok,
   enabled: false,
   schedule_interval_ms: :timer.hours(4)
 
+# Gemini API configuration (Google Search grounding)
+config :gridroom, :gemini,
+  api_key: System.get_env("GEMINI_API_KEY"),
+  model: "gemini-2.5-flash",
+  enabled: false
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

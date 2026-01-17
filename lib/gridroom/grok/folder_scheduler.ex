@@ -3,16 +3,23 @@ defmodule Gridroom.Grok.FolderScheduler do
   GenServer that periodically fetches topics for each folder.
 
   Runs daily at a configured time (default: 6 AM UTC) to populate
-  each folder with fresh topics from X search.
+  each folder with fresh topics from multiple sources:
+  - Grok/X-search: 7-9 topics from X/Twitter trends
+  - Gemini/Google Search: 3-4 topics with Google Search grounding
 
   Controlled by the `:grok` config:
   - `enabled: true/false` - Whether to run the scheduler
   - `folder_schedule_hour` - Hour (UTC) to run daily (default: 6)
+
+  Controlled by the `:gemini` config:
+  - `enabled: true/false` - Whether to include Gemini topics
   """
 
   use GenServer
 
   alias Gridroom.Grok.{Client, FolderFetcher, TrendRefiner}
+  alias Gridroom.Gemini.Client, as: GeminiClient
+  alias Gridroom.Gemini.FolderFetcher, as: GeminiFolderFetcher
   alias Gridroom.{Folders, Grid}
   alias Gridroom.Folders.Folder
 
@@ -102,7 +109,8 @@ defmodule Gridroom.Grok.FolderScheduler do
   @impl true
   def handle_call(:status, _from, state) do
     status = %{
-      enabled: Client.enabled?(),
+      grok_enabled: Client.enabled?(),
+      gemini_enabled: GeminiClient.enabled?(),
       last_run: state.last_run,
       last_results: state.last_results,
       total_runs: state.total_runs,
@@ -155,24 +163,64 @@ defmodule Gridroom.Grok.FolderScheduler do
     # Get existing nodes in this folder to avoid duplicates
     existing_nodes = Folders.list_folder_nodes(folder.id, today)
 
-    case FolderFetcher.fetch_folder_trends(folder, existing_nodes: existing_nodes) do
-      {:ok, trends} ->
-        # Refine trends with second LLM pass
-        refined_trends = TrendRefiner.refine_trends(trends)
+    # Fetch from Grok/X-search
+    grok_nodes = fetch_grok_topics(folder, existing_nodes, today)
 
-        # Create nodes for each trend
-        created_nodes =
-          Enum.map(refined_trends, fn trend ->
+    # Fetch from Gemini/Google Search (if enabled)
+    # Pass updated existing_nodes to avoid duplicates across sources
+    all_existing = existing_nodes ++ grok_nodes
+    gemini_nodes = fetch_gemini_topics(folder, all_existing, today)
+
+    total_created = length(grok_nodes) + length(gemini_nodes)
+    Logger.info("Created #{total_created} nodes for folder #{folder.name} (Grok: #{length(grok_nodes)}, Gemini: #{length(gemini_nodes)})")
+
+    {:ok, %{total: total_created, grok: length(grok_nodes), gemini: length(gemini_nodes)}}
+  end
+
+  defp fetch_grok_topics(folder, existing_nodes, today) do
+    unless Client.enabled?() do
+      Logger.info("Grok disabled, skipping Grok fetch for folder #{folder.name}")
+      []
+    else
+      case FolderFetcher.fetch_folder_trends(folder, existing_nodes: existing_nodes) do
+        {:ok, trends} ->
+          # Refine trends with second LLM pass
+          refined_trends = TrendRefiner.refine_trends(trends)
+
+          # Create nodes for each trend
+          refined_trends
+          |> Enum.map(fn trend ->
+            trend = Map.put(trend, :source_api, "grok")
             create_folder_node(trend, folder, today)
           end)
           |> Enum.reject(&is_nil/1)
 
-        Logger.info("Created #{length(created_nodes)} nodes for folder #{folder.name}")
-        {:ok, length(created_nodes)}
+        {:error, reason} ->
+          Logger.error("Grok: Failed to fetch topics for folder #{folder.name}: #{inspect(reason)}")
+          []
+      end
+    end
+  end
 
-      {:error, reason} ->
-        Logger.error("Failed to fetch topics for folder #{folder.name}: #{inspect(reason)}")
-        {:error, reason}
+  defp fetch_gemini_topics(folder, existing_nodes, today) do
+    unless GeminiClient.enabled?() do
+      Logger.info("Gemini disabled, skipping Gemini fetch for folder #{folder.name}")
+      []
+    else
+      # Add delay before Gemini call to avoid rate limiting
+      Process.sleep(1000)
+
+      case GeminiFolderFetcher.fetch_folder_trends(folder, existing_nodes: existing_nodes, count: 4) do
+        {:ok, trends} ->
+          # Create nodes for each trend (already has source_api: "gemini")
+          trends
+          |> Enum.map(fn trend -> create_folder_node(trend, folder, today) end)
+          |> Enum.reject(&is_nil/1)
+
+        {:error, reason} ->
+          Logger.error("Gemini: Failed to fetch topics for folder #{folder.name}: #{inspect(reason)}")
+          []
+      end
     end
   end
 
@@ -180,6 +228,8 @@ defmodule Gridroom.Grok.FolderScheduler do
     # Use golden angle spiral for positioning within folder's nodes
     existing_nodes = Folders.list_folder_nodes(folder.id, date)
     position = find_folder_position(existing_nodes)
+
+    source_api = trend[:source_api] || "grok"
 
     attrs = %{
       title: trend.title,
@@ -190,13 +240,14 @@ defmodule Gridroom.Grok.FolderScheduler do
       glyph_shape: "hexagon",
       glyph_color: folder_color(folder.slug),
       sources: trend[:sources] || [],
+      source_api: source_api,
       folder_id: folder.id,
       folder_date: date
     }
 
     case Grid.create_node(attrs) do
       {:ok, node} ->
-        Logger.info("Created node '#{node.title}' for folder #{folder.name}")
+        Logger.info("Created node '#{node.title}' for folder #{folder.name} (source: #{source_api})")
         node
 
       {:error, changeset} ->

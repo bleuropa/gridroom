@@ -17,6 +17,7 @@ defmodule Gridroom.Grid.Node do
     field :glyph_color, :string, default: "#8B7355"
     field :last_activity_at, :utc_datetime
     field :sources, {:array, :map}, default: []
+    field :source_api, :string, default: "grok"
     field :folder_date, :date
 
     belongs_to :created_by, Gridroom.Accounts.User
@@ -28,7 +29,7 @@ defmodule Gridroom.Grid.Node do
 
   def changeset(node, attrs) do
     node
-    |> cast(attrs, [:title, :description, :position_x, :position_y, :node_type, :glyph_shape, :glyph_color, :created_by_id, :last_activity_at, :sources, :folder_id, :folder_date])
+    |> cast(attrs, [:title, :description, :position_x, :position_y, :node_type, :glyph_shape, :glyph_color, :created_by_id, :last_activity_at, :sources, :source_api, :folder_id, :folder_date])
     |> validate_required([:title, :position_x, :position_y])
     |> validate_inclusion(:node_type, @node_types)
   end
