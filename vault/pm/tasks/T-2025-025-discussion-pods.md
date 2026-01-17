@@ -3,7 +3,7 @@ type: task
 id: T-2025-025
 story:
 epic:
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-17
 updated: 2026-01-17
@@ -15,12 +15,12 @@ updated: 2026-01-17
 **Task ID**: T-2025-025
 **Story**:
 **Epic**:
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1 (High)
 **Branch**: feat/T-2025-025-discussion-pods
 **Created**: 2026-01-17
 **Started**: 2026-01-17
-**Completed**:
+**Completed**: 2026-01-17
 
 ## Description
 Add "Pods" - private groups within discussions. Users can invite each other to pods, and when viewing a discussion, they can toggle between the general discussion view and their pod view(s). Messages entered in a pod pane are only visible to other pod members.

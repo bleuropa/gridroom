@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-025-discussion-pods]]
-**Branch**: feat/T-2025-025-discussion-pods
-**Goal**: Add private pods within discussions for group messaging
+**Active Task**: None
+**Branch**: main
+**Goal**: Select next task from backlog
 
 ---
 
@@ -40,9 +40,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-025-discussion-pods]] - Private pods for group messaging within discussions
 - [[T-2025-024-streaming-messages-pagination]] - Streaming messages with LiveView streams for lazy loading
 - [[T-2025-023-gemini-google-search-grounding]] - Gemini Google Search grounding + decay/scheduler cleanup
-- [[T-2025-022-mdr-folder-system]] - MDR folder system for discussion categories (Sports, Gossip, Tech, etc.)
 
 ---
 
