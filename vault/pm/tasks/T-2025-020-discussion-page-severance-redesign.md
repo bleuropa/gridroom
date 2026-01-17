@@ -3,7 +3,7 @@ type: task
 id: T-2025-020
 story:
 epic:
-status: backlog
+status: in-progress
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
@@ -15,11 +15,11 @@ updated: 2026-01-16
 **Task ID**: T-2025-020-discussion-page-severance-redesign
 **Story**:
 **Epic**:
-**Status**: Backlog
+**Status**: In Progress
 **Priority**: P1
-**Branch**: feat/T-2025-020-discussion-page-severance-redesign
+**Branch**: feat/T-2025-020-discussion-severance-redesign
 **Created**: 2026-01-16
-**Started**:
+**Started**: 2026-01-16
 **Completed**:
 
 ## Description

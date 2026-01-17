@@ -7,15 +7,17 @@
 
 ## Current Focus
 
-No active task. Ready for next work item.
+**Active Task**: [[T-2025-020-discussion-page-severance-redesign]]
+**Branch**: feat/T-2025-020-discussion-severance-redesign
+**Goal**: Redesign discussion pages to match Severance terminal aesthetic, add bucket indicators
 
 ---
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-020-discussion-page-severance-redesign]] - Redesign discussion pages to match Severance terminal aesthetic
-2. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
-3. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+1. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
+2. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+3. [[T-2025-011-portal-system]] - Portal system with energy cost
 
 ## Backlog (Prioritized)
 
