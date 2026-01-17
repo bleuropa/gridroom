@@ -219,12 +219,13 @@ defmodule GridroomWeb.TerminalLive do
 
     if length(buckets) < 6 do
       new_buckets = buckets ++ [current]
-      Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
+      # Longer delay for keep animation - savoring the moment
+      Process.send_after(self(), :dismiss_complete, 800)
 
       {:noreply,
        socket
        |> assign(:buckets, new_buckets)
-       |> assign(:current_state, :dismissing)}
+       |> assign(:current_state, :keeping)}
     else
       # Buckets full - flash indicator?
       {:noreply, socket}
@@ -233,7 +234,7 @@ defmodule GridroomWeb.TerminalLive do
 
   defp dismiss_current(socket) do
     Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
-    {:noreply, assign(socket, :current_state, :dismissing)}
+    {:noreply, assign(socket, :current_state, :skipping)}
   end
 
   @impl true
@@ -358,23 +359,24 @@ defmodule GridroomWeb.TerminalLive do
             </span>
           </div>
 
-          <!-- Action hints (only when visible) -->
-          <%= if @state == :visible do %>
-            <div class="flex items-center justify-center gap-8 mt-12 text-[10px] font-mono uppercase tracking-wider">
-              <button
-                phx-click="bucket_current"
-                class="text-[#3a3530] hover:text-[#8b9a7d] transition-colors flex items-center gap-2"
-              >
-                <span class="text-[#5a4f42]">space</span> keep
-              </button>
-              <button
-                phx-click="dismiss_current"
-                class="text-[#3a3530] hover:text-[#5a4f42] transition-colors flex items-center gap-2"
-              >
-                <span class="text-[#5a4f42]">x</span> skip
-              </button>
-            </div>
-          <% end %>
+          <!-- Action hints - always present for layout, fade in when visible -->
+          <div class={[
+            "flex items-center justify-center gap-8 mt-12 text-[10px] font-mono uppercase tracking-wider transition-opacity duration-700",
+            if(@state == :visible, do: "opacity-100", else: "opacity-0 pointer-events-none")
+          ]}>
+            <button
+              phx-click="bucket_current"
+              class="text-[#3a3530] hover:text-[#8b9a7d] transition-colors flex items-center gap-2"
+            >
+              <span class="text-[#5a4f42]">space</span> keep
+            </button>
+            <button
+              phx-click="dismiss_current"
+              class="text-[#3a3530] hover:text-[#5a4f42] transition-colors flex items-center gap-2"
+            >
+              <span class="text-[#5a4f42]">x</span> skip
+            </button>
+          </div>
         </div>
       <% else %>
         <!-- Void state - waiting -->
@@ -486,7 +488,8 @@ defmodule GridroomWeb.TerminalLive do
   defp emergence_classes(:void), do: "opacity-0"
   defp emergence_classes(:emerging), do: "terminal-emerging"
   defp emergence_classes(:visible), do: "terminal-visible"
-  defp emergence_classes(:dismissing), do: "terminal-dismissing"
+  defp emergence_classes(:keeping), do: "terminal-keeping"
+  defp emergence_classes(:skipping), do: "terminal-skipping"
 
   defp drift_style(seed) do
     # Subtle floating animation offset based on seed
