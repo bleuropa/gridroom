@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-023
-status: backlog
+status: in-progress
 priority: p1
 created: 2026-01-17
 updated: 2026-01-17
@@ -15,7 +15,7 @@ updated: 2026-01-17
 **Priority**: P1 (High)
 **Branch**: feat/T-2025-023-gemini-google-search-grounding
 **Created**: 2026-01-17
-**Started**:
+**Started**: 2026-01-17
 **Completed**:
 
 ## Description
