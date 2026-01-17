@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: None
-**Branch**: main
-**Goal**: Select next task from backlog
+**Active Task**: [[T-2025-024-streaming-messages-pagination]]
+**Branch**: feat/T-2025-024-streaming-messages-pagination
+**Goal**: Implement lazy-loading messages with LiveView streams
 
 ---
 
