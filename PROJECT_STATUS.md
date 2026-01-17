@@ -9,6 +9,8 @@
 
 No active task. Ready for next priority.
 
+**Planned**: [[T-2025-023-gemini-google-search-grounding]] - Add Gemini Google Search grounding as second topic source
+
 ---
 
 ## Next Up (Top 3 Priorities)
