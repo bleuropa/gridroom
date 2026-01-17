@@ -234,24 +234,4 @@ defmodule Gridroom.Grid do
       {:new_message, message}
     )
   end
-
-  # Seeding
-
-  def seed_initial_nodes! do
-    nodes = [
-      %{title: "The AI hiring question", description: "Where does automation end and humanity begin?", position_x: 0.0, position_y: 0.0, node_type: "debate"},
-      %{title: "Sleep as resistance", description: "In a world that never stops, rest is radical.", position_x: 150.0, position_y: -80.0, node_type: "discussion"},
-      %{title: "The third place is dead", description: "Where do we gather now?", position_x: -120.0, position_y: 100.0, node_type: "question"},
-      %{title: "Vibes-based decision making", description: "Trust the feeling.", position_x: 200.0, position_y: 150.0, node_type: "discussion"},
-      %{title: "Digital gardens", description: "Tend your corner of the internet.", position_x: -180.0, position_y: -120.0, node_type: "quiet"},
-      %{title: "The loneliness epidemic", description: "Connected but alone.", position_x: 80.0, position_y: 200.0, node_type: "discussion"}
-    ]
-
-    Enum.each(nodes, fn attrs ->
-      case Repo.get_by(Node, title: attrs.title) do
-        nil -> create_node(attrs)
-        _existing -> :ok
-      end
-    end)
-  end
 end

@@ -33,9 +33,6 @@ defmodule GridroomWeb.GridLive do
       Presence.track_user(self(), user)
     end
 
-    # Seed nodes if needed (first time setup)
-    Grid.seed_initial_nodes!()
-
     # Load initial nodes with activity
     nodes = Grid.list_nodes_with_activity()
 
