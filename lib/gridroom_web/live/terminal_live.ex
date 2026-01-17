@@ -11,8 +11,8 @@ defmodule GridroomWeb.TerminalLive do
   alias Gridroom.{Grid, Accounts}
   alias GridroomWeb.Presence
 
-  @emerge_delay_ms 800
-  @dismiss_delay_ms 300
+  @emerge_delay_ms 1500   # Slower emergence - more deliberate
+  @dismiss_delay_ms 600   # Heavier dismiss - things have weight
 
   @impl true
   def mount(_params, session, socket) do
@@ -119,13 +119,14 @@ defmodule GridroomWeb.TerminalLive do
           end
         end
 
-      # Number keys 1-6 - view bucketed discussion
+      # Number keys 1-6 - enter bucketed discussion directly
       key in ~w(1 2 3 4 5 6) ->
         index = String.to_integer(key) - 1
         buckets = socket.assigns.buckets
 
         if index < length(buckets) do
-          {:noreply, socket |> assign(:active_bucket, index) |> assign(:view_mode, :viewing)}
+          bucket = Enum.at(buckets, index)
+          {:noreply, push_navigate(socket, to: "/node/#{bucket.id}")}
         else
           {:noreply, socket}
         end
@@ -330,12 +331,7 @@ defmodule GridroomWeb.TerminalLive do
     ~H"""
     <div class="relative w-full max-w-2xl px-8">
       <%= if @current do %>
-        <div class={[
-          "transition-all duration-700 ease-out",
-          emergence_classes(@state)
-        ]}
-        style={drift_style(@drift_seed)}
-        >
+        <div class={emergence_classes(@state)} style={drift_style(@drift_seed)}>
           <!-- Main title -->
           <h2 class={[
             "text-2xl md:text-3xl font-light tracking-wide text-center mb-4 transition-colors duration-500",
@@ -383,7 +379,7 @@ defmodule GridroomWeb.TerminalLive do
       <% else %>
         <!-- Void state - waiting -->
         <div class="text-center">
-          <div class="w-2 h-2 rounded-full bg-[#2a2522] mx-auto animate-pulse"></div>
+          <div class="w-2 h-2 rounded-full bg-[#2a2522] mx-auto void-indicator"></div>
         </div>
       <% end %>
     </div>
@@ -486,11 +482,11 @@ defmodule GridroomWeb.TerminalLive do
     """
   end
 
-  # Helper functions
-  defp emergence_classes(:void), do: "opacity-0 scale-95"
-  defp emergence_classes(:emerging), do: "opacity-50 scale-100"
-  defp emergence_classes(:visible), do: "opacity-100 scale-100"
-  defp emergence_classes(:dismissing), do: "opacity-0 scale-95 -translate-y-4"
+  # Helper functions - using Lumon CSS animation classes
+  defp emergence_classes(:void), do: "opacity-0"
+  defp emergence_classes(:emerging), do: "terminal-emerging"
+  defp emergence_classes(:visible), do: "terminal-visible"
+  defp emergence_classes(:dismissing), do: "terminal-dismissing"
 
   defp drift_style(seed) do
     # Subtle floating animation offset based on seed
