@@ -347,48 +347,90 @@ defmodule GridroomWeb.TerminalLive do
     <div class="relative w-full max-w-2xl px-8">
       <%= if @current do %>
         <div class={emergence_classes(@state)} style={drift_style(@drift_seed)}>
+          <!-- Terminal frame decoration -->
+          <div class="flex items-center justify-center gap-3 mb-8">
+            <div class="h-px w-12 bg-gradient-to-r from-transparent to-[#2a2522]"></div>
+            <div class="text-[#2a2522] text-[8px] font-mono tracking-[0.3em] uppercase">topic</div>
+            <div class="h-px w-12 bg-gradient-to-l from-transparent to-[#2a2522]"></div>
+          </div>
+
           <!-- Main title -->
           <h2 class={[
-            "text-2xl md:text-3xl font-light tracking-wide text-center mb-4 transition-colors duration-500",
-            if(@state == :visible, do: "text-[#c4b8a8]", else: "text-[#5a4f42]")
+            "lumon-title text-2xl md:text-3xl font-light tracking-[0.08em] text-center mb-6 transition-all duration-700",
+            if(@state == :visible, do: "lumon-title-glow text-[#e8e0d5]", else: "text-[#5a4f42]")
           ]}>
             <%= @current.title %>
           </h2>
 
           <!-- Description (if exists) -->
           <%= if @current.description && @current.description != "" do %>
-            <p class={[
-              "text-center text-sm md:text-base font-light transition-colors duration-500 max-w-md mx-auto",
-              if(@state == :visible, do: "text-[#5a4f42]", else: "text-[#3a3530]")
-            ]}>
-              "<%= @current.description %>"
-            </p>
+            <div class="flex items-start justify-center gap-3 max-w-lg mx-auto">
+              <span class={[
+                "text-lg font-serif transition-colors duration-500 mt-0.5",
+                if(@state == :visible, do: "text-[#5a4f42]", else: "text-[#3a3530]")
+              ]}>"</span>
+              <p class={[
+                "text-center text-sm md:text-base font-light leading-relaxed transition-colors duration-500 font-serif italic",
+                if(@state == :visible, do: "text-[#8a7d6d]", else: "text-[#4a4038]")
+              ]}>
+                <%= @current.description %>
+              </p>
+              <span class={[
+                "text-lg font-serif transition-colors duration-500 mt-0.5",
+                if(@state == :visible, do: "text-[#5a4f42]", else: "text-[#3a3530]")
+              ]}>"</span>
+            </div>
           <% end %>
 
-          <!-- Activity indicator - very subtle -->
-          <div class="flex items-center justify-center gap-2 mt-6">
-            <div class={["w-1.5 h-1.5 rounded-full", activity_dot(@current.activity.level)]}></div>
-            <span class="text-[#3a3530] text-[10px] font-mono uppercase tracking-wider">
+          <!-- Activity indicator - clinical terminal style -->
+          <div class="flex items-center justify-center gap-4 mt-8">
+            <div class="flex items-center gap-2">
+              <div class={[
+                "w-2 h-2 rounded-full transition-all duration-500",
+                activity_dot(@current.activity.level)
+              ]}></div>
+              <div class={[
+                "h-px w-8 transition-all duration-500",
+                activity_line(@current.activity.level)
+              ]}></div>
+            </div>
+            <span class={[
+              "text-[10px] font-mono uppercase tracking-[0.2em] transition-colors duration-500",
+              if(@state == :visible, do: "text-[#5a4f42]", else: "text-[#3a3530]")
+            ]}>
               <%= @current.activity.level %>
             </span>
+            <div class="flex items-center gap-2">
+              <div class={[
+                "h-px w-8 transition-all duration-500",
+                activity_line(@current.activity.level)
+              ]}></div>
+              <div class={[
+                "w-2 h-2 rounded-full transition-all duration-500",
+                activity_dot(@current.activity.level)
+              ]}></div>
+            </div>
           </div>
 
           <!-- Action hints - always present for layout, fade in when visible -->
           <div class={[
-            "flex items-center justify-center gap-8 mt-12 text-[10px] font-mono uppercase tracking-wider transition-opacity duration-700",
+            "flex items-center justify-center gap-12 mt-14 transition-opacity duration-700",
             if(@state == :visible, do: "opacity-100", else: "opacity-0 pointer-events-none")
           ]}>
             <button
               phx-click="bucket_current"
-              class="text-[#3a3530] hover:text-[#8b9a7d] transition-colors flex items-center gap-2"
+              class="group flex flex-col items-center gap-2 transition-all duration-300"
             >
-              <span class="text-[#5a4f42]">space</span> keep
+              <span class="text-[#3a3530] group-hover:text-[#8b9a7d] text-[10px] font-mono uppercase tracking-[0.15em] transition-colors">keep</span>
+              <span class="text-[#5a4f42] group-hover:text-[#8b9a7d] text-[8px] font-mono tracking-wider transition-colors">[space]</span>
             </button>
+            <div class="h-6 w-px bg-[#1a1714]"></div>
             <button
               phx-click="dismiss_current"
-              class="text-[#3a3530] hover:text-[#5a4f42] transition-colors flex items-center gap-2"
+              class="group flex flex-col items-center gap-2 transition-all duration-300"
             >
-              <span class="text-[#5a4f42]">x</span> skip
+              <span class="text-[#3a3530] group-hover:text-[#5a4f42] text-[10px] font-mono uppercase tracking-[0.15em] transition-colors">skip</span>
+              <span class="text-[#5a4f42] group-hover:text-[#6a5f52] text-[8px] font-mono tracking-wider transition-colors">[x]</span>
             </button>
           </div>
         </div>
@@ -515,4 +557,9 @@ defmodule GridroomWeb.TerminalLive do
   defp activity_dot(:active), do: "bg-[#8b9a7d]"
   defp activity_dot(:quiet), do: "bg-[#5a4f42]"
   defp activity_dot(:dormant), do: "bg-[#3a3530]"
+
+  defp activity_line(:buzzing), do: "bg-gradient-to-r from-[#c9a962]/60 to-transparent"
+  defp activity_line(:active), do: "bg-gradient-to-r from-[#8b9a7d]/40 to-transparent"
+  defp activity_line(:quiet), do: "bg-gradient-to-r from-[#5a4f42]/30 to-transparent"
+  defp activity_line(:dormant), do: "bg-gradient-to-r from-[#3a3530]/20 to-transparent"
 end
