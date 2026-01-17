@@ -215,7 +215,20 @@ defmodule GridroomWeb.TerminalLive do
       socket
     end
 
-    {:noreply, socket}
+    {:noreply, push_event(socket, "buckets_updated", %{buckets: buckets})}
+  end
+
+  # Restore buckets from localStorage
+  @impl true
+  def handle_event("restore_buckets", %{"bucket_ids" => bucket_ids}, socket) do
+    # Load nodes by ID, filtering out any that no longer exist
+    buckets =
+      bucket_ids
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&Grid.get_node_with_activity/1)
+      |> Enum.reject(&is_nil/1)
+
+    {:noreply, assign(socket, :buckets, buckets)}
   end
 
   # Private helpers
@@ -235,7 +248,8 @@ defmodule GridroomWeb.TerminalLive do
        socket
        |> assign(:buckets, new_buckets)
        |> assign(:new_bucket_index, new_index)
-       |> assign(:current_state, :keeping)}
+       |> assign(:current_state, :keeping)
+       |> push_event("buckets_updated", %{buckets: new_buckets})}
     else
       # Buckets full - flash indicator?
       {:noreply, socket}
@@ -253,6 +267,7 @@ defmodule GridroomWeb.TerminalLive do
     <div
       id="terminal-container"
       class="fixed inset-0 bg-[#080706] overflow-hidden"
+      phx-hook="TerminalKeys"
       phx-window-keydown="keydown"
     >
       <!-- Subtle vignette -->
@@ -265,6 +280,8 @@ defmodule GridroomWeb.TerminalLive do
             current={@current}
             state={@current_state}
             drift_seed={@drift_seed}
+            queue_empty={Enum.empty?(@queue)}
+            has_buckets={length(@buckets) > 0}
           />
         <% else %>
           <.bucket_view
@@ -347,10 +364,10 @@ defmodule GridroomWeb.TerminalLive do
     <div class="relative w-full max-w-2xl px-8">
       <%= if @current do %>
         <div class={emergence_classes(@state)} style={drift_style(@drift_seed)}>
-          <!-- Title - the presence -->
+          <!-- Title - Lumon style: clean, spaced, present -->
           <h2 class={[
-            "text-2xl md:text-4xl font-light tracking-wide text-center leading-relaxed transition-all duration-1000",
-            if(@state == :visible, do: "lumon-text-glow text-[#d4ccc0]", else: "text-[#3a3530]")
+            "text-xl md:text-3xl font-extralight tracking-[0.15em] text-center leading-relaxed transition-all duration-1000 uppercase",
+            if(@state == :visible, do: "lumon-text-glow text-[#c8c0b4]", else: "text-[#3a3530]")
           ]}>
             <%= @current.title %>
           </h2>
@@ -358,15 +375,15 @@ defmodule GridroomWeb.TerminalLive do
           <!-- Description whisper -->
           <%= if @current.description && @current.description != "" do %>
             <p class={[
-              "text-center text-sm md:text-base font-light leading-loose mt-6 max-w-md mx-auto transition-all duration-1000 delay-200",
-              if(@state == :visible, do: "text-[#6a5f52]", else: "text-[#2a2522]")
+              "text-center text-xs md:text-sm font-light leading-loose mt-8 max-w-sm mx-auto transition-all duration-1000 delay-200 tracking-wide",
+              if(@state == :visible, do: "text-[#5a5347]", else: "text-[#2a2522]")
             ]}>
               <%= @current.description %>
             </p>
           <% end %>
 
           <!-- Minimal activity pulse -->
-          <div class="flex items-center justify-center mt-10">
+          <div class="flex items-center justify-center mt-12">
             <div class={[
               "w-1 h-1 rounded-full transition-all duration-1000",
               if(@state == :visible, do: activity_dot_visible(@current.activity.level), else: "bg-[#1a1714]")
@@ -375,27 +392,47 @@ defmodule GridroomWeb.TerminalLive do
 
           <!-- Action hints - ghostly -->
           <div class={[
-            "flex items-center justify-center gap-16 mt-16 transition-all duration-1000",
-            if(@state == :visible, do: "opacity-60", else: "opacity-0 pointer-events-none")
+            "flex items-center justify-center gap-20 mt-20 transition-all duration-1000",
+            if(@state == :visible, do: "opacity-50", else: "opacity-0 pointer-events-none")
           ]}>
             <button
               phx-click="bucket_current"
-              class="text-[#3a3530] hover:text-[#6a5f52] text-[9px] font-mono tracking-widest uppercase transition-colors duration-500"
+              class="text-[#3a3530] hover:text-[#5a5347] text-[8px] font-mono tracking-[0.2em] uppercase transition-colors duration-500"
             >
               space
             </button>
             <button
               phx-click="dismiss_current"
-              class="text-[#3a3530] hover:text-[#4a4038] text-[9px] font-mono tracking-widest uppercase transition-colors duration-500"
+              class="text-[#3a3530] hover:text-[#4a4038] text-[8px] font-mono tracking-[0.2em] uppercase transition-colors duration-500"
             >
               x
             </button>
           </div>
         </div>
       <% else %>
-        <!-- Void state - waiting -->
+        <!-- Void state -->
         <div class="text-center">
-          <div class="w-2 h-2 rounded-full bg-[#2a2522] mx-auto void-indicator"></div>
+          <%= if @queue_empty do %>
+            <!-- All topics reviewed - Lumon completion message -->
+            <div class="space-y-8 animate-fade-in">
+              <p class="text-[#4a4540] text-xs font-mono tracking-[0.3em] uppercase">
+                all topics reviewed
+              </p>
+              <div class="w-8 h-px bg-[#2a2522] mx-auto"></div>
+              <%= if @has_buckets do %>
+                <p class="text-[#3a3530] text-[10px] font-mono tracking-widest">
+                  your selections await
+                </p>
+              <% else %>
+                <p class="text-[#3a3530] text-[10px] font-mono tracking-widest">
+                  return when ready
+                </p>
+              <% end %>
+            </div>
+          <% else %>
+            <!-- Waiting for next emergence -->
+            <div class="w-1.5 h-1.5 rounded-full bg-[#2a2522] mx-auto void-indicator"></div>
+          <% end %>
         </div>
       <% end %>
     </div>

@@ -100,6 +100,34 @@ defmodule Gridroom.Grid do
 
   def get_node(id), do: Repo.get(Node, id)
 
+  @doc """
+  Get a single node with activity data attached.
+  Returns nil if node not found.
+  """
+  def get_node_with_activity(id) do
+    case Repo.get(Node, id) |> Repo.preload(:created_by) do
+      nil ->
+        nil
+
+      node ->
+        one_hour_ago = DateTime.utc_now() |> DateTime.add(-3600, :second)
+
+        message_count =
+          from(m in Message,
+            where: m.node_id == ^node.id and m.inserted_at >= ^one_hour_ago,
+            select: count(m.id)
+          )
+          |> Repo.one()
+
+        activity_level = calculate_activity_level(message_count)
+        decay_state = calculate_decay_state(node)
+
+        node
+        |> Map.put(:activity, %{count: message_count, level: activity_level})
+        |> Map.put(:decay, decay_state)
+    end
+  end
+
   def create_node(attrs \\ %{}) do
     # Set last_activity_at to now if not provided
     attrs = Map.put_new(attrs, :last_activity_at, DateTime.utc_now() |> DateTime.truncate(:second))
