@@ -7,17 +7,17 @@
 
 ## Current Focus
 
-**Active Task**: None
-**Branch**: main
-**Goal**: Ready for new task
+**Active Task**: [[T-2025-019-corridor-navigation]]
+**Branch**: feat/T-2025-019-corridor-navigation
+**Goal**: Severance-style first-person corridor navigation with organic branching
 
 ---
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-019-corridor-navigation]] - Corridor navigation system (Severance-style)
-2. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
-3. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+1. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
+2. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+3. [[T-2025-011-portal-system]] - Portal system with energy cost
 
 ## Backlog (Prioritized)
 

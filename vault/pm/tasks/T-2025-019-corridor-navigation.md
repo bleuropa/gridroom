@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-019
-status: backlog
+status: in-progress
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16
