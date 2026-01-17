@@ -480,34 +480,43 @@ Hooks.NodeKeys = {
   mounted() {
     this.spaceHeld = false
 
+    // Check if any text input element is focused (not just message-input)
+    const isTextInputFocused = () => {
+      const el = document.activeElement
+      if (!el) return false
+      const tagName = el.tagName.toLowerCase()
+      return tagName === 'input' || tagName === 'textarea' || el.isContentEditable
+    }
+
     this.handleKeyDown = (e) => {
-      const input = document.getElementById('message-input')
-      const isInputFocused = document.activeElement === input
+      const messageInput = document.getElementById('message-input')
+      const isMessageInputFocused = document.activeElement === messageInput
+      const isAnyInputFocused = isTextInputFocused()
 
-      // Enter focuses the input (if not already focused)
-      if (e.key === 'Enter' && !isInputFocused) {
+      // Enter focuses the message input (if not already focused on any input)
+      if (e.key === 'Enter' && !isAnyInputFocused) {
         e.preventDefault()
-        input?.focus()
+        messageInput?.focus()
         return
       }
 
-      // Escape blurs the input
-      if (e.key === 'Escape' && isInputFocused) {
+      // Escape blurs the current input
+      if (e.key === 'Escape' && isAnyInputFocused) {
         e.preventDefault()
-        input?.blur()
+        document.activeElement?.blur()
         return
       }
 
-      // Space held shows highlights (only when input not focused)
-      if (e.key === ' ' && !isInputFocused && !this.spaceHeld) {
+      // Space held shows highlights (only when no input is focused)
+      if (e.key === ' ' && !isAnyInputFocused && !this.spaceHeld) {
         e.preventDefault()
         this.spaceHeld = true
         this.pushEvent('show_highlights', {})
         return
       }
 
-      // Number keys 1-6 navigate to buckets (only when input not focused)
-      if (!isInputFocused && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+      // Number keys 1-6 navigate to buckets (only when no input is focused)
+      if (!isAnyInputFocused && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
         e.preventDefault()
         const index = parseInt(e.key) - 1
         this.pushEvent('navigate_to_bucket', { index })

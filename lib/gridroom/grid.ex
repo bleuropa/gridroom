@@ -177,17 +177,29 @@ defmodule Gridroom.Grid do
 
   def get_message(id), do: Repo.get(Message, id)
 
+  @doc """
+  Lists messages for a node, optionally filtered by pod.
+
+  ## Options
+  - `:limit` - Number of messages to fetch (default: 50)
+  - `:pod_id` - Filter to messages in a specific pod (nil = general discussion)
+  """
   def list_messages_for_node(node_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 50)
+    pod_id = Keyword.get(opts, :pod_id)
 
     Message
     |> where([m], m.node_id == ^node_id)
+    |> filter_by_pod(pod_id)
     |> order_by([m], desc: m.inserted_at)
     |> limit(^limit)
     |> preload(:user)
     |> Repo.all()
     |> Enum.reverse()
   end
+
+  defp filter_by_pod(query, nil), do: where(query, [m], is_nil(m.pod_id))
+  defp filter_by_pod(query, pod_id), do: where(query, [m], m.pod_id == ^pod_id)
 
   @doc """
   Lists messages for a node with cursor-based pagination.
@@ -196,16 +208,19 @@ defmodule Gridroom.Grid do
   ## Options
   - `:limit` - Number of messages to fetch (default: 50)
   - `:before_id` - Fetch messages older than this message ID (cursor)
+  - `:pod_id` - Filter to messages in a specific pod (nil = general discussion)
 
   Returns messages in chronological order (oldest first).
   """
   def list_messages_paginated(node_id, opts \\ []) do
     limit = Keyword.get(opts, :limit, 50)
     before_id = Keyword.get(opts, :before_id)
+    pod_id = Keyword.get(opts, :pod_id)
 
     query =
       Message
       |> where([m], m.node_id == ^node_id)
+      |> filter_by_pod(pod_id)
       |> order_by([m], desc: m.inserted_at)
       |> limit(^limit)
       |> preload(:user)

@@ -1,7 +1,7 @@
 defmodule GridroomWeb.NodeLive do
   use GridroomWeb, :live_view
 
-  alias Gridroom.{Grid, Accounts, Connections, Resonance}
+  alias Gridroom.{Grid, Accounts, Connections, Resonance, Pods}
   alias GridroomWeb.Presence
 
   @impl true
@@ -82,6 +82,9 @@ defmodule GridroomWeb.NodeLive do
     # Load user's buckets for persistent display
     buckets = load_user_buckets(user)
 
+    # Load user's pods for pod view toggle
+    user_pods = Pods.list_user_pods(user.id)
+
     {:ok,
      socket
      |> assign(:node, node)
@@ -96,6 +99,10 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:cooldown_users, cooldown_users)
      |> assign(:feedback_given, feedback_given)
      |> assign(:buckets, buckets)
+     |> assign(:user_pods, user_pods)
+     |> assign(:current_pod_id, nil)
+     |> assign(:show_create_pod_modal, false)
+     |> assign(:show_invite_modal, false)
      |> assign(:message_form, to_form(%{"content" => ""}))
      |> assign(:page_title, node.title)
      |> assign(:og_title, "#{node.title} - Gridroom")
@@ -132,6 +139,7 @@ defmodule GridroomWeb.NodeLive do
     else
       node = socket.assigns.node
       user = socket.assigns.user
+      pod_id = socket.assigns.current_pod_id
 
       # Stop typing indicator when sending
       if socket.assigns.typing do
@@ -141,7 +149,8 @@ defmodule GridroomWeb.NodeLive do
       case Grid.create_message(%{
         content: String.trim(content),
         node_id: node.id,
-        user_id: user.id
+        user_id: user.id,
+        pod_id: pod_id
       }) do
         {:ok, _message} ->
           {:noreply,
@@ -168,7 +177,8 @@ defmodule GridroomWeb.NodeLive do
         Grid.list_messages_paginated(
           socket.assigns.node.id,
           limit: @load_more_limit,
-          before_id: socket.assigns.oldest_message_id
+          before_id: socket.assigns.oldest_message_id,
+          pod_id: socket.assigns.current_pod_id
         )
 
       if Enum.empty?(older_messages) do
@@ -353,6 +363,99 @@ defmodule GridroomWeb.NodeLive do
     end
   end
 
+  # Pod event handlers
+
+  @impl true
+  def handle_event("switch_pod", %{"pod-id" => "general"}, socket) do
+    # Switch to general discussion view
+    messages = Grid.list_messages_paginated(socket.assigns.node.id, limit: @initial_messages_limit, pod_id: nil)
+    oldest_message_id = List.first(messages) && List.first(messages).id
+    has_more = length(messages) == @initial_messages_limit
+
+    {:noreply,
+     socket
+     |> assign(:current_pod_id, nil)
+     |> stream(:messages, messages, reset: true)
+     |> assign(:oldest_message_id, oldest_message_id)
+     |> assign(:has_more_messages, has_more)}
+  end
+
+  def handle_event("switch_pod", %{"pod-id" => pod_id}, socket) do
+    # Verify user is a member of this pod
+    if Pods.member?(pod_id, socket.assigns.user.id) do
+      messages = Grid.list_messages_paginated(socket.assigns.node.id, limit: @initial_messages_limit, pod_id: pod_id)
+      oldest_message_id = List.first(messages) && List.first(messages).id
+      has_more = length(messages) == @initial_messages_limit
+
+      {:noreply,
+       socket
+       |> assign(:current_pod_id, pod_id)
+       |> stream(:messages, messages, reset: true)
+       |> assign(:oldest_message_id, oldest_message_id)
+       |> assign(:has_more_messages, has_more)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("show_create_pod_modal", _params, socket) do
+    {:noreply, assign(socket, :show_create_pod_modal, true)}
+  end
+
+  @impl true
+  def handle_event("hide_create_pod_modal", _params, socket) do
+    {:noreply, assign(socket, :show_create_pod_modal, false)}
+  end
+
+  @impl true
+  def handle_event("create_pod", %{"name" => name}, socket) when name != "" do
+    case Pods.create_pod(%{name: String.trim(name)}, socket.assigns.user.id) do
+      {:ok, pod} ->
+        user_pods = Pods.list_user_pods(socket.assigns.user.id)
+        {:noreply,
+         socket
+         |> assign(:user_pods, user_pods)
+         |> assign(:show_create_pod_modal, false)
+         |> assign(:current_pod_id, pod.id)
+         |> stream(:messages, [], reset: true)
+         |> assign(:oldest_message_id, nil)
+         |> assign(:has_more_messages, false)}
+
+      {:error, _} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("create_pod", _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("show_invite_modal", _params, socket) do
+    {:noreply, assign(socket, :show_invite_modal, true)}
+  end
+
+  @impl true
+  def handle_event("hide_invite_modal", _params, socket) do
+    {:noreply, assign(socket, :show_invite_modal, false)}
+  end
+
+  @impl true
+  def handle_event("invite_to_pod", %{"user-id" => user_id}, socket) do
+    pod_id = socket.assigns.current_pod_id
+
+    if pod_id && Pods.member?(pod_id, socket.assigns.user.id) do
+      case Pods.invite_user(pod_id, user_id, socket.assigns.user.id) do
+        {:ok, _membership} ->
+          {:noreply, socket}
+
+        {:error, _} ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
   @impl true
   def handle_info(:hide_copied_toast, socket) do
     {:noreply, assign(socket, :show_copied_toast, false)}
@@ -360,8 +463,13 @@ defmodule GridroomWeb.NodeLive do
 
   @impl true
   def handle_info({:new_message, message}, socket) do
-    # Append new message to stream (at the end, which is bottom of chat)
-    {:noreply, stream_insert(socket, :messages, message)}
+    # Only show message if it matches current pod view
+    # message.pod_id == nil means general, otherwise it's a pod message
+    if message.pod_id == socket.assigns.current_pod_id do
+      {:noreply, stream_insert(socket, :messages, message)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -479,6 +587,14 @@ defmodule GridroomWeb.NodeLive do
             copied
           </div>
         </div>
+      <% end %>
+
+      <!-- Pod selector bar (only show if user has pods or is logged in) -->
+      <%= if @logged_in do %>
+        <.pod_selector
+          user_pods={@user_pods}
+          current_pod_id={@current_pod_id}
+        />
       <% end %>
 
       <!-- Messages area -->
@@ -625,6 +741,202 @@ defmodule GridroomWeb.NodeLive do
       <%= if @kick_warning do %>
         <.kick_warning_overlay warning={@kick_warning} />
       <% end %>
+
+      <!-- Create Pod modal -->
+      <%= if @show_create_pod_modal do %>
+        <.create_pod_modal />
+      <% end %>
+
+      <!-- Invite to Pod modal -->
+      <%= if @show_invite_modal && @current_pod_id do %>
+        <.invite_to_pod_modal
+          present_users={@present_users}
+          current_user_id={@user.id}
+          current_pod={Enum.find(@user_pods, & &1.id == @current_pod_id)}
+        />
+      <% end %>
+    </div>
+    """
+  end
+
+  # Pod components
+
+  attr :user_pods, :list, required: true
+  attr :current_pod_id, :any, required: true
+  defp pod_selector(assigns) do
+    ~H"""
+    <div class="relative z-10 border-b border-[#1a1714]/30 bg-[#0a0908]/60">
+      <div class="px-6 py-2 flex items-center gap-3">
+        <span class="text-[#3a3530] text-[9px] font-mono uppercase tracking-widest">view</span>
+
+        <!-- General discussion tab -->
+        <button
+          phx-click="switch_pod"
+          phx-value-pod-id="general"
+          class={[
+            "px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-all duration-200 border",
+            if(is_nil(@current_pod_id),
+              do: "border-[#8b9a7d]/40 bg-[#8b9a7d]/10 text-[#8b9a7d]",
+              else: "border-[#2a2520]/50 text-[#5a5248] hover:border-[#3a3530] hover:text-[#7a7268]")
+          ]}
+        >
+          general
+        </button>
+
+        <!-- Pod tabs -->
+        <%= for pod <- @user_pods do %>
+          <button
+            phx-click="switch_pod"
+            phx-value-pod-id={pod.id}
+            class={[
+              "px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-all duration-200 border",
+              if(pod.id == @current_pod_id,
+                do: "border-[#c9a962]/40 bg-[#c9a962]/10 text-[#c9a962]",
+                else: "border-[#2a2520]/50 text-[#5a5248] hover:border-[#3a3530] hover:text-[#7a7268]")
+            ]}
+          >
+            <%= pod.name %>
+          </button>
+        <% end %>
+
+        <!-- Create new pod button -->
+        <button
+          phx-click="show_create_pod_modal"
+          class="px-2 py-1.5 text-[10px] font-mono text-[#4a4540] hover:text-[#7a7268] transition-colors"
+          title="Create new pod"
+        >
+          + pod
+        </button>
+
+        <!-- Invite button (only when viewing a pod) -->
+        <%= if @current_pod_id do %>
+          <button
+            phx-click="show_invite_modal"
+            class="ml-auto px-2 py-1 text-[9px] font-mono uppercase tracking-widest text-[#c9a962]/70 hover:text-[#c9a962] border border-[#c9a962]/20 hover:border-[#c9a962]/40 transition-all"
+          >
+            invite
+          </button>
+        <% end %>
+      </div>
+    </div>
+    """
+  end
+
+  defp create_pod_modal(assigns) do
+    ~H"""
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center animate-fade-in">
+      <div class="bg-[#0d0b0a] border border-[#2a2520] p-6 max-w-sm w-full mx-4">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-[#e8e0d4] text-sm font-mono tracking-widest uppercase">Create Pod</h2>
+          <button
+            phx-click="hide_create_pod_modal"
+            class="text-[#5a4f42] hover:text-[#8a7d6d] transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <form phx-submit="create_pod" class="space-y-4">
+          <div>
+            <label class="block text-[#5a5248] text-[10px] uppercase tracking-widest mb-2">Pod Name</label>
+            <input
+              type="text"
+              name="name"
+              placeholder="e.g. Coffee Break"
+              class="w-full bg-transparent border border-[#2a2520] px-3 py-2 text-[#e8e0d4] font-mono text-sm placeholder-[#3a3530] focus:outline-none focus:border-[#4a4540] transition-colors"
+              autocomplete="off"
+              autofocus
+            />
+          </div>
+          <p class="text-[#4a4540] text-[10px] font-mono">
+            Pods are private groups. Only members can see pod messages.
+          </p>
+          <div class="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              phx-click="hide_create_pod_modal"
+              class="px-4 py-2 text-[10px] font-mono uppercase tracking-widest text-[#5a5248] hover:text-[#8a7d6d] transition-colors"
+            >
+              cancel
+            </button>
+            <button
+              type="submit"
+              class="px-4 py-2 border border-[#c9a962]/40 bg-[#c9a962]/10 text-[#c9a962] text-[10px] font-mono uppercase tracking-widest hover:bg-[#c9a962]/20 transition-colors"
+            >
+              create
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    """
+  end
+
+  attr :present_users, :map, required: true
+  attr :current_user_id, :string, required: true
+  attr :current_pod, :map, required: true
+  defp invite_to_pod_modal(assigns) do
+    # Filter out current user and get other present users
+    other_users =
+      assigns.present_users
+      |> Enum.reject(fn {id, _} -> id == assigns.current_user_id end)
+      |> Enum.map(fn {_id, presence} -> presence end)
+
+    assigns = assign(assigns, :other_users, other_users)
+
+    ~H"""
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center animate-fade-in">
+      <div class="bg-[#0d0b0a] border border-[#2a2520] p-6 max-w-sm w-full mx-4">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-[#e8e0d4] text-sm font-mono tracking-widest uppercase">
+            Invite to <%= @current_pod && @current_pod.name %>
+          </h2>
+          <button
+            phx-click="hide_invite_modal"
+            class="text-[#5a4f42] hover:text-[#8a7d6d] transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <%= if Enum.empty?(@other_users) do %>
+          <p class="text-[#5a5248] text-sm font-mono text-center py-4">
+            No other users present to invite.
+          </p>
+        <% else %>
+          <div class="space-y-2">
+            <p class="text-[#5a5248] text-[10px] uppercase tracking-widest mb-3">Present Users</p>
+            <%= for user <- @other_users do %>
+              <div class="flex items-center justify-between py-2 px-3 border border-[#1a1714] hover:border-[#2a2520] transition-colors">
+                <span class="text-[#c8c0b4] text-sm font-mono">
+                  <%= user.username || "anon" %>
+                </span>
+                <button
+                  phx-click="invite_to_pod"
+                  phx-value-user-id={user.user_id}
+                  class="px-3 py-1 text-[9px] font-mono uppercase tracking-widest text-[#c9a962]/70 hover:text-[#c9a962] border border-[#c9a962]/20 hover:border-[#c9a962]/40 transition-all"
+                >
+                  invite
+                </button>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <div class="flex justify-end pt-4">
+          <button
+            type="button"
+            phx-click="hide_invite_modal"
+            class="px-4 py-2 text-[10px] font-mono uppercase tracking-widest text-[#5a5248] hover:text-[#8a7d6d] transition-colors"
+          >
+            close
+          </button>
+        </div>
+      </div>
     </div>
     """
   end
