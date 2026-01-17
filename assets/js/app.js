@@ -327,6 +327,140 @@ Hooks.TypingIndicator = {
   }
 }
 
+// Character Reveal Hook - characters materialize one by one, no cursor
+Hooks.Typewriter = {
+  mounted() {
+    this.text = this.el.dataset.text || ""
+    this.charDelay = parseInt(this.el.dataset.charDelay) || 60
+    this.startDelay = parseInt(this.el.dataset.startDelay) || 0
+    this.onComplete = this.el.dataset.onComplete
+    this.currentIndex = 0
+    this.isRevealing = false
+
+    // Clear the element
+    this.el.textContent = ''
+
+    // Start revealing after delay
+    setTimeout(() => this.startRevealing(), this.startDelay)
+  },
+
+  startRevealing() {
+    if (this.isRevealing || this.currentIndex >= this.text.length) {
+      this.finishRevealing()
+      return
+    }
+
+    this.isRevealing = true
+    this.revealNextChar()
+  },
+
+  revealNextChar() {
+    if (this.currentIndex >= this.text.length) {
+      this.finishRevealing()
+      return
+    }
+
+    const char = this.text[this.currentIndex]
+
+    // Create a span for each character so we can animate it
+    const charSpan = document.createElement('span')
+    charSpan.textContent = char
+    charSpan.className = 'char-materializing'
+    this.el.appendChild(charSpan)
+
+    // Trigger the materialize animation
+    requestAnimationFrame(() => {
+      charSpan.classList.add('char-visible')
+    })
+
+    this.currentIndex++
+
+    // Organic timing - slower, dreamier
+    let delay = this.charDelay
+    if ('.,:;!?'.includes(char)) {
+      delay = this.charDelay * 6 // Long pause on punctuation - contemplative
+    } else if (char === ' ') {
+      delay = this.charDelay * 2.5 // Pause between words
+    }
+
+    // More variation for organic, breathing feel
+    delay += (Math.random() - 0.5) * this.charDelay * 0.6
+
+    setTimeout(() => this.revealNextChar(), delay)
+  },
+
+  finishRevealing() {
+    this.isRevealing = false
+
+    // Notify LiveView that reveal is complete
+    if (this.onComplete) {
+      this.pushEvent(this.onComplete, {})
+    }
+  },
+
+  destroyed() {
+    // Cleanup if needed
+  }
+}
+
+// Node Keys Hook - handles keyboard shortcuts for discussion rooms
+Hooks.NodeKeys = {
+  mounted() {
+    this.spaceHeld = false
+
+    this.handleKeyDown = (e) => {
+      const input = document.getElementById('message-input')
+      const isInputFocused = document.activeElement === input
+
+      // Enter focuses the input (if not already focused)
+      if (e.key === 'Enter' && !isInputFocused) {
+        e.preventDefault()
+        input?.focus()
+        return
+      }
+
+      // Escape blurs the input
+      if (e.key === 'Escape' && isInputFocused) {
+        e.preventDefault()
+        input?.blur()
+        return
+      }
+
+      // Space held shows highlights (only when input not focused)
+      if (e.key === ' ' && !isInputFocused && !this.spaceHeld) {
+        e.preventDefault()
+        this.spaceHeld = true
+        this.pushEvent('show_highlights', {})
+        return
+      }
+
+      // Number keys 1-6 navigate to buckets (only when input not focused)
+      if (!isInputFocused && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+        e.preventDefault()
+        const index = parseInt(e.key) - 1
+        this.pushEvent('navigate_to_bucket', { index })
+        return
+      }
+    }
+
+    this.handleKeyUp = (e) => {
+      // Space released hides highlights
+      if (e.key === ' ' && this.spaceHeld) {
+        this.spaceHeld = false
+        this.pushEvent('hide_highlights', {})
+      }
+    }
+
+    window.addEventListener('keydown', this.handleKeyDown)
+    window.addEventListener('keyup', this.handleKeyUp)
+  },
+
+  destroyed() {
+    window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUp)
+  }
+}
+
 // Terminal Keys Hook - handles keyboard shortcuts for terminal interface
 Hooks.TerminalKeys = {
   mounted() {

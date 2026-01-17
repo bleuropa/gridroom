@@ -1,13 +1,15 @@
 # Project Status
 
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-01-16
 **Project**: Gridroom
 
 ---
 
 ## Current Focus
 
-No active task. Ready for next work item.
+**Active Task**: [[T-2025-020-discussion-page-severance-redesign]]
+**Branch**: feat/T-2025-020-discussion-severance-redesign
+**Goal**: Redesign discussion pages to match Severance terminal aesthetic, add bucket indicators
 
 ---
 

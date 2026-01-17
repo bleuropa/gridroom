@@ -55,9 +55,8 @@ defmodule GridroomWeb.NodeLive do
       Connections.record_visit(user, id)
     end
 
-    # Load messages, highlighted messages, and current presence
+    # Load messages and current presence
     messages = Grid.list_messages_for_node(id, limit: 100)
-    highlights = Grid.list_top_affirmed_messages(id, min_affirmations: 2, limit: 3)
     present_users = if connected?(socket), do: presence_to_map(Presence.list_users_in_node(id)), else: %{}
 
     # Load feedback state for the current user
@@ -71,16 +70,19 @@ defmodule GridroomWeb.NodeLive do
       |> Enum.map(& &1.id)
       |> MapSet.new()
 
+    # Load user's buckets for persistent display
+    buckets = load_user_buckets(user)
+
     {:ok,
      socket
      |> assign(:node, node)
      |> assign(:user, user)
      |> assign(:messages, messages)
-     |> assign(:highlights, highlights)
      |> assign(:present_users, present_users)
      |> assign(:remembered_user_ids, remembered_user_ids)
      |> assign(:cooldown_users, cooldown_users)
      |> assign(:feedback_given, feedback_given)
+     |> assign(:buckets, buckets)
      |> assign(:message_form, to_form(%{"content" => ""}))
      |> assign(:page_title, node.title)
      |> assign(:og_title, "#{node.title} - Gridroom")
@@ -90,7 +92,16 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:selected_user, nil)
      |> assign(:selected_user_activity, [])
      |> assign(:is_remembered, false)
-     |> assign(:kick_warning, nil)}
+     |> assign(:kick_warning, nil)
+     |> assign(:show_highlights, false)}
+  end
+
+  # Load buckets from user's saved IDs, filtering out gone nodes
+  defp load_user_buckets(user) do
+    user.bucket_ids
+    |> Enum.map(&Grid.get_node_with_activity/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reject(fn node -> node.decay == :gone end)
   end
 
   defp presence_to_map(presence_list) do
@@ -258,6 +269,24 @@ defmodule GridroomWeb.NodeLive do
   end
 
   @impl true
+  def handle_event("show_highlights", _params, socket) do
+    {:noreply, assign(socket, :show_highlights, true)}
+  end
+
+  @impl true
+  def handle_event("hide_highlights", _params, socket) do
+    {:noreply, assign(socket, :show_highlights, false)}
+  end
+
+  @impl true
+  def handle_event("navigate_to_bucket", %{"index" => index}, socket) do
+    case Enum.at(socket.assigns.buckets, index) do
+      nil -> {:noreply, socket}
+      bucket -> {:noreply, push_navigate(socket, to: ~p"/node/#{bucket.id}")}
+    end
+  end
+
+  @impl true
   def handle_info(:hide_copied_toast, socket) do
     {:noreply, assign(socket, :show_copied_toast, false)}
   end
@@ -340,26 +369,24 @@ defmodule GridroomWeb.NodeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="h-screen bg-[#0a0908] flex flex-col room-entrance relative overflow-hidden" phx-hook="RoomEntrance" id="room-container">
-      <!-- Subtle ambient gradient overlay -->
-      <div class="absolute inset-0 bg-gradient-to-b from-[#0d0b0a] via-transparent to-[#0d0b0a]/80 pointer-events-none"></div>
-      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(201,169,98,0.02)_0%,_transparent_70%)] pointer-events-none"></div>
+    <div class="h-screen lumon-terminal flex flex-col room-entrance relative overflow-hidden" phx-hook="NodeKeys" id="room-container">
+      <!-- Lumon CRT atmosphere layers -->
+      <div class="pointer-events-none fixed inset-0 lumon-vignette"></div>
+      <div class="pointer-events-none fixed inset-0 lumon-scanlines"></div>
+      <div class="pointer-events-none fixed inset-0 lumon-glow"></div>
 
-      <!-- Header - Lumon style -->
-      <header class="relative z-10 border-b border-[#1a1714] bg-[#0d0b0a]/90 backdrop-blur-sm">
-        <div class="px-8 py-5 flex items-center gap-5">
-          <a href={"/?from=#{@node.id}"} class="text-[#4a4038] hover:text-[#c9a962] transition-colors duration-300">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+      <!-- Header - Severance terminal style -->
+      <header class="relative z-10 border-b border-[#1a1714]/50 bg-[#0a0908]/80 backdrop-blur-sm">
+        <div class="px-6 py-4 flex items-center gap-4">
+          <a href={"/?from=#{@node.id}"} class="text-[#4a4540] hover:text-[#8a8278] transition-colors duration-200">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
           </a>
-          <div class="flex-1">
-            <div class="flex items-center gap-3">
-              <h1 class="text-lg font-light tracking-wide text-[#e8dcc8]"><%= @node.title %></h1>
-              <.node_type_badge type={@node.node_type} />
-            </div>
+          <div class="flex-1 min-w-0">
+            <h1 class="text-base font-mono font-normal tracking-wide text-[#e8e0d4] truncate"><%= @node.title %></h1>
             <%= if @node.description do %>
-              <p class="text-sm text-[#5a4f42] mt-1 font-light italic"><%= @node.description %></p>
+              <p class="text-xs font-mono text-[#7a7268] mt-1 truncate"><%= @node.description %></p>
             <% end %>
             <!-- Sources (for trend-generated nodes) -->
             <%= if @node.sources && length(@node.sources) > 0 do %>
@@ -371,38 +398,18 @@ defmodule GridroomWeb.NodeLive do
             phx-click="copy_share_url"
             phx-hook="CopyToClipboard"
             data-copy-text={url(~p"/node/#{@node.id}")}
-            class="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest text-[#5a4f42] hover:text-[#c9a962] border border-[#2a2522] hover:border-[#c9a962]/40 transition-all duration-300"
+            class="text-[#4a4540] hover:text-[#8a8278] text-[10px] font-mono uppercase tracking-widest transition-colors duration-200"
           >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"/>
-            </svg>
-            Share
+            share
           </button>
         </div>
-        <!-- Subtle bottom highlight line -->
-        <div class="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#c9a962]/20 to-transparent"></div>
       </header>
 
-      <!-- Copied toast - Lumon style -->
+      <!-- Copied toast -->
       <%= if @show_copied_toast do %>
-        <div class="fixed top-24 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div class="bg-[#0d0b0a] border border-[#2a2522] px-6 py-3 text-xs tracking-widest uppercase text-[#8a7d6d] shadow-xl shadow-black/50">
-            <span class="text-[#c9a962] mr-2">&#x2713;</span> Link copied
-          </div>
-        </div>
-      <% end %>
-
-      <!-- Highlights section - most affirmed messages -->
-      <%= if length(@highlights) > 0 do %>
-        <div class="relative z-10 border-b border-[#1a1714] bg-[#0d0b0a]/80 px-8 py-4 flex-shrink-0">
-          <div class="flex items-center gap-3 mb-3">
-            <span class="text-[#3a3330] text-[9px] uppercase tracking-[0.15em]">Highlights</span>
-            <div class="flex-1 h-px bg-gradient-to-r from-[#2a2522] to-transparent"></div>
-          </div>
-          <div class="flex gap-3 overflow-x-auto scrollbar-hide">
-            <%= for highlight <- @highlights do %>
-              <.highlight_card message={highlight} />
-            <% end %>
+        <div class="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+          <div class="bg-[#0a0908] border border-[#2a2520]/50 px-4 py-2 text-[10px] font-mono tracking-widest uppercase text-[#8a8278]">
+            copied
           </div>
         </div>
       <% end %>
@@ -410,18 +417,15 @@ defmodule GridroomWeb.NodeLive do
       <!-- Messages area -->
       <div
         id="messages"
-        class="relative z-10 flex-1 overflow-y-auto px-8 py-6 min-h-0"
+        class="relative z-10 flex-1 overflow-y-auto px-6 py-4 min-h-0"
         phx-hook="ScrollToBottom"
       >
         <%= if Enum.empty?(@messages) do %>
           <div class="flex flex-col items-center justify-center h-full text-center">
-            <div class="w-16 h-px bg-gradient-to-r from-transparent via-[#2a2522] to-transparent mb-8"></div>
-            <p class="text-[#5a4f42] text-sm uppercase tracking-widest">This space awaits</p>
-            <p class="text-[#3a3330] text-xs mt-3 font-light">Be the first to speak</p>
-            <div class="w-16 h-px bg-gradient-to-r from-transparent via-[#2a2522] to-transparent mt-8"></div>
+            <p class="text-[#4a4540] text-xs font-mono tracking-[0.2em] uppercase">awaiting input</p>
           </div>
         <% else %>
-          <div class="space-y-5">
+          <div class="space-y-3">
             <%= for message <- @messages do %>
               <.message_bubble
                 message={message}
@@ -436,17 +440,18 @@ defmodule GridroomWeb.NodeLive do
       </div>
 
       <!-- Bottom section: presence row + input -->
-      <div class="relative z-10 border-t border-[#1a1714] bg-[#0d0b0a]/95 backdrop-blur-sm">
-        <!-- Presence row - diamond avatars -->
-        <div class="px-8 py-4 border-b border-[#1a1714]/50">
+      <div class="relative z-10 border-t border-[#1a1714]/50 bg-[#0a0908]/90">
+        <!-- Presence row -->
+        <div class="px-6 py-3 border-b border-[#1a1714]/30">
           <div class="flex items-center gap-2">
-            <span class="text-[#3a3330] text-[10px] uppercase tracking-[0.2em] mr-4">Present</span>
-            <div class="flex items-center gap-3">
+            <span class="text-[#3a3530] text-[9px] font-mono uppercase tracking-widest">present</span>
+            <div class="flex items-center gap-2 ml-2">
               <%= for {_id, presence} <- @present_users do %>
                 <.presence_diamond
                   presence={presence}
                   is_self={presence.user_id == @user.id}
                   is_recognized={MapSet.member?(@remembered_user_ids, presence.user_id)}
+                  shared_bucket_indices={shared_bucket_indices(presence.user_id, @buckets, @node.id)}
                   on_click={if presence.user_id != @user.id, do: "select_user"}
                 />
               <% end %>
@@ -454,34 +459,52 @@ defmodule GridroomWeb.NodeLive do
             <!-- Typing indicator -->
             <% typing_users = Enum.filter(@present_users, fn {id, p} -> p.typing && id != @user.id end) %>
             <%= if length(typing_users) > 0 do %>
-              <span class="ml-auto text-[#5a4f42] text-xs tracking-wide animate-pulse">
+              <span class="text-[#6a6258] text-[10px] font-mono tracking-wide animate-pulse">
                 <%= typing_text(typing_users) %>
               </span>
+            <% end %>
+            <!-- Bucket indicators -->
+            <%= if length(@buckets) > 0 do %>
+              <div class="flex items-center gap-2 ml-auto">
+                <span class="text-[9px] font-mono text-[#3a3530] uppercase tracking-widest">buckets</span>
+                <%= for {bucket, index} <- Enum.with_index(@buckets) do %>
+                  <a
+                    href={~p"/node/#{bucket.id}"}
+                    class={[
+                      "w-6 h-6 rounded-full border flex items-center justify-center text-[9px] font-mono transition-all duration-200",
+                      bucket_color_classes(index, bucket.id == @node.id)
+                    ]}
+                    title={bucket.title}
+                  >
+                    <%= index + 1 %>
+                  </a>
+                <% end %>
+              </div>
             <% end %>
           </div>
         </div>
 
-        <!-- Input area -->
-        <div class="px-8 py-5">
-          <.form for={@message_form} phx-submit="send_message" class="flex gap-4">
+        <!-- Input area - terminal style -->
+        <div class="px-6 py-4">
+          <.form for={@message_form} phx-submit="send_message" class="flex gap-3">
             <div class="flex-1 relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a4540] text-sm font-mono">></span>
               <input
                 type="text"
                 name="content"
                 id="message-input"
                 phx-hook="TypingIndicator"
                 value={@message_form[:content].value}
-                placeholder="Speak..."
-                class="w-full bg-[#141210] border border-[#2a2522] px-5 py-3.5 text-[#e8dcc8] placeholder-[#3a3330] focus:outline-none focus:border-[#c9a962]/50 focus:shadow-[0_0_20px_rgba(201,169,98,0.1)] transition-all duration-300 text-sm tracking-wide"
+                placeholder=""
+                class="w-full bg-transparent border border-[#2a2520]/50 pl-7 pr-4 py-3 text-[#e8e0d4] font-mono text-sm placeholder-[#3a3530] focus:outline-none focus:border-[#4a4540] transition-colors duration-200"
                 autocomplete="off"
               />
-              <!-- Subtle inner glow on focus via CSS -->
             </div>
             <button
               type="submit"
-              class="px-8 py-3.5 bg-gradient-to-b from-[#c9a962] to-[#a68b4d] text-[#0d0b0a] text-xs uppercase tracking-[0.2em] font-medium hover:from-[#d4b46d] hover:to-[#b89a58] transition-all duration-300 shadow-lg shadow-[#c9a962]/20 hover:shadow-[#c9a962]/40"
+              class="px-6 py-3 border border-[#4a4540]/50 text-[#8a8278] text-[10px] font-mono uppercase tracking-widest hover:border-[#6a6258] hover:text-[#a8a298] transition-colors duration-200"
             >
-              Speak
+              send
             </button>
           </.form>
         </div>
@@ -496,10 +519,73 @@ defmodule GridroomWeb.NodeLive do
         />
       <% end %>
 
+      <!-- Highlights overlay (space held) -->
+      <%= if @show_highlights do %>
+        <.highlights_overlay messages={highlighted_messages(@messages)} />
+      <% end %>
+
       <!-- Kick warning overlay -->
       <%= if @kick_warning do %>
         <.kick_warning_overlay warning={@kick_warning} />
       <% end %>
+    </div>
+    """
+  end
+
+  # Get top 5 most affirmed messages for highlights
+  defp highlighted_messages(messages) do
+    messages
+    |> Enum.filter(fn m -> (m.affirm_count || 0) > 0 end)
+    |> Enum.sort_by(fn m -> m.affirm_count || 0 end, :desc)
+    |> Enum.take(5)
+  end
+
+  defp highlights_overlay(assigns) do
+    ~H"""
+    <div class="fixed inset-0 bg-black/85 backdrop-blur-sm z-[90] flex items-center justify-center animate-fade-in">
+      <div class="max-w-2xl w-full mx-6">
+        <!-- Header -->
+        <div class="text-center mb-8">
+          <h2 class="text-[#e8e0d4] text-lg font-mono tracking-widest uppercase mb-2">Highlights</h2>
+          <p class="text-[#5a5248] text-xs font-mono tracking-wide">Most affirmed contributions</p>
+        </div>
+
+        <%= if Enum.empty?(@messages) do %>
+          <div class="text-center py-12">
+            <p class="text-[#4a4540] text-sm font-mono">No affirmed messages yet</p>
+          </div>
+        <% else %>
+          <div class="space-y-4">
+            <%= for {message, rank} <- Enum.with_index(@messages, 1) do %>
+              <div class="bg-[#0d0b0a]/80 border border-[#c9a962]/20 p-4">
+                <div class="flex items-start gap-4">
+                  <!-- Rank -->
+                  <div class="w-8 h-8 rounded-full border border-[#c9a962]/40 flex items-center justify-center flex-shrink-0">
+                    <span class="text-[#c9a962] text-sm font-mono"><%= rank %></span>
+                  </div>
+                  <!-- Content -->
+                  <div class="flex-1 min-w-0">
+                    <p class="text-[#c8c0b4] text-sm font-mono leading-relaxed mb-2"><%= message.content %></p>
+                    <div class="flex items-center gap-4">
+                      <span class="text-[#6a6258] text-[10px] font-mono">
+                        <%= message.user && message.user.username || "anon" %>
+                      </span>
+                      <span class="text-[#8b9a7d] text-[10px] font-mono uppercase tracking-wider">
+                        <%= message.affirm_count %> affirmation<%= if message.affirm_count != 1, do: "s" %>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        <% end %>
+
+        <!-- Hint -->
+        <p class="text-center text-[#3a3530] text-[10px] font-mono tracking-wider uppercase mt-8">
+          release space to close
+        </p>
+      </div>
     </div>
     """
   end
@@ -698,137 +784,49 @@ defmodule GridroomWeb.NodeLive do
   attr :presence, :map, required: true
   attr :is_self, :boolean, default: false
   attr :is_recognized, :boolean, default: false
+  attr :shared_bucket_indices, :list, default: []
   attr :on_click, :string, default: nil
   defp presence_diamond(assigns) do
-    # Calculate resonance-based visual properties
-    resonance = assigns.presence[:resonance] || 50
-    resonance_level = Resonance.resonance_level(%{resonance: resonance})
-    {base_opacity, glow_intensity, is_depleted} = resonance_visual_props(resonance_level)
-
-    assigns =
-      assigns
-      |> assign(:base_opacity, base_opacity)
-      |> assign(:glow_intensity, glow_intensity)
-      |> assign(:is_depleted, is_depleted)
-      |> assign(:resonance_level, resonance_level)
-
     ~H"""
     <div
-      class={"relative group #{if @on_click, do: "cursor-pointer hover:scale-110 transition-all duration-200"}"}
+      class={"relative group #{if @on_click, do: "cursor-pointer"}"}
       phx-click={@on_click}
       phx-value-id={@presence.user_id}
     >
-      <svg
-        width="28"
-        height="28"
-        viewBox="-14 -14 28 28"
-        class={"transition-all duration-300 #{if @presence.typing, do: "animate-pulse scale-110"} #{if @is_depleted, do: "opacity-50"}"}
-      >
-        <defs>
-          <!-- Glow filter for high resonance -->
-          <%= if @glow_intensity > 0 do %>
-            <filter id={"glow-#{@presence.user_id}"} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation={@glow_intensity} result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          <% end %>
-        </defs>
-
-        <!-- Radiant aura for high resonance users -->
-        <%= if @resonance_level == :radiant && !@is_self do %>
-          <polygon
-            points="0,-13 13,0 0,13 -13,0"
-            fill="none"
-            stroke="#c9a962"
-            stroke-width="1.5"
-            opacity="0.5"
-            class="animate-breathe"
-          />
-        <% end %>
-
-        <!-- Recognition glow ring for remembered users -->
-        <%= if @is_recognized && !@is_self do %>
-          <polygon
-            points="0,-13 13,0 0,13 -13,0"
-            fill="none"
-            stroke="#c9a962"
-            stroke-width="1"
-            opacity="0.6"
-            class="animate-breathe"
-          />
-          <polygon
-            points="0,-11.5 11.5,0 0,11.5 -11.5,0"
-            fill="none"
-            stroke="#c9a962"
-            stroke-width="0.5"
-            opacity="0.3"
-          />
-        <% end %>
-
-        <!-- Self indicator ring -->
-        <%= if @is_self do %>
-          <polygon
-            points="0,-12 12,0 0,12 -12,0"
-            fill="none"
-            stroke="#c9a962"
-            stroke-width="1.5"
-            opacity="0.7"
-          />
-        <% end %>
-
-        <!-- Depleted warning ring (red pulse) -->
-        <%= if @is_depleted && !@is_self do %>
-          <polygon
-            points="0,-12 12,0 0,12 -12,0"
-            fill="none"
-            stroke="#d4756a"
-            stroke-width="1"
-            opacity="0.6"
-            class="animate-pulse"
-          />
-        <% end %>
-
-        <!-- Diamond shape with resonance-based opacity -->
-        <g filter={if @glow_intensity > 0, do: "url(#glow-#{@presence.user_id})"}>
-          <polygon
-            points="0,-9 9,0 0,9 -9,0"
-            fill={@presence.glyph_color}
-            opacity={if @is_self, do: "1", else: @base_opacity}
-          />
-        </g>
-
-        <!-- Inner highlight -->
-        <polygon
-          points="0,-5 5,0 0,5 -5,0"
-          fill={@presence.glyph_color}
-          opacity={if @is_self, do: "0.5", else: Float.to_string(@base_opacity * 0.4)}
-          class={if @is_self || @is_recognized || @resonance_level in [:elevated, :radiant], do: "animate-breathe"}
-        />
-
-        <!-- Tiny center spark for recognized or radiant users -->
-        <%= if (@is_recognized || @resonance_level == :radiant) && !@is_self do %>
-          <circle
-            r="1.5"
-            fill={if @resonance_level == :radiant, do: "#c9a962", else: "#c9a962"}
-            opacity="0.8"
-            class="animate-breathe-fast"
-          />
-        <% end %>
-      </svg>
-
-      <!-- Tooltip with username, recognition status, and resonance -->
-      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-[#0d0b0a] border border-[#2a2522] text-[10px] tracking-wider uppercase whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-lg">
-        <span class={resonance_tooltip_color(@resonance_level, @is_recognized, @is_self)}>
-          <%= @presence.username || "Anonymous" %><%= if @is_self, do: " (you)" %>
+      <!-- Shared bucket rings -->
+      <%= for idx <- @shared_bucket_indices do %>
+        <div
+          class="absolute inset-0 rounded-full animate-pulse"
+          style={"
+            width: #{12 + idx * 6}px;
+            height: #{12 + idx * 6}px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 1px solid #{bucket_ring_color(idx)};
+            opacity: 0.6;
+          "}
+        ></div>
+      <% end %>
+      <div class={[
+        "w-2 h-2 rounded-full transition-all duration-200 relative z-10",
+        cond do
+          @is_self -> "bg-[#8b9a7d]"
+          @is_recognized -> "bg-[#c9a962]"
+          @presence.typing -> "bg-[#6a6258] animate-pulse"
+          true -> "bg-[#4a4540]"
+        end,
+        if(@on_click, do: "hover:scale-125")
+      ]}></div>
+      <!-- Tooltip -->
+      <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-[#0a0908] border border-[#2a2520]/50 text-[9px] font-mono tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
+        <span class={if @is_self, do: "text-[#8b9a7d]", else: "text-[#8a8278]"}>
+          <%= @presence.username || "anon" %><%= if @is_self, do: " (you)" %>
         </span>
-        <%= if @is_recognized && !@is_self do %>
-          <span class="ml-2 text-[#5a4f42]">• remembered</span>
-        <% end %>
-        <%= if @is_depleted && !@is_self do %>
-          <span class="ml-2 text-[#d4756a]">• unstable</span>
+        <%= if length(@shared_bucket_indices) > 0 do %>
+          <span class="text-[#5a5248] ml-1">
+            (in <%= length(@shared_bucket_indices) %> shared bucket<%= if length(@shared_bucket_indices) > 1, do: "s" %>)
+          </span>
         <% end %>
       </div>
     </div>
@@ -861,104 +859,61 @@ defmodule GridroomWeb.NodeLive do
   attr :feedback_type, :atom, default: nil
   defp message_bubble(assigns) do
     is_own = assigns.message.user_id == assigns.current_user.id
-    # Can show feedback buttons if: not own message, not on cooldown, and haven't given feedback yet
     can_give_feedback = !is_own && !assigns.on_cooldown && is_nil(assigns.feedback_type)
     assigns = assigns
       |> assign(:is_own, is_own)
       |> assign(:can_give_feedback, can_give_feedback)
 
     ~H"""
-    <div class={"flex gap-4 #{if @is_own, do: "flex-row-reverse"}"} data-message-id={@message.id}>
-      <!-- User glyph with recognition indicator -->
-      <div class="flex-shrink-0 relative">
-        <svg width="36" height="36" viewBox="-12 -12 24 24">
-          <!-- Recognition ring -->
-          <%= if @is_recognized && !@is_own do %>
-            <circle r="11" fill="none" stroke="#c9a962" stroke-width="1" opacity="0.4" class="animate-breathe" />
-          <% end %>
-          <.message_glyph user={@message.user} is_own={@is_own} />
-        </svg>
-      </div>
-
-      <!-- Message content -->
-      <div class={[
-        "max-w-lg relative group",
-        if(@is_own,
-          do: "bg-gradient-to-br from-[#c9a962]/15 to-[#c9a962]/5 border border-[#c9a962]/20",
-          else: if(@is_recognized,
-            do: "bg-[#141210] border border-[#c9a962]/15",
-            else: "bg-[#141210] border border-[#1a1714]"
-          )
-        )
-      ]}>
-        <!-- Top accent line for recognized users -->
-        <%= if @is_recognized && !@is_own do %>
-          <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-[#c9a962]/40 via-[#c9a962]/20 to-transparent"></div>
-        <% end %>
-
-        <div class="px-4 py-3">
-          <!-- Username for non-self messages -->
-          <%= if !@is_own && @message.user do %>
-            <p class={[
-              "text-[10px] uppercase tracking-wider mb-1.5",
-              if(@is_recognized, do: "text-[#c9a962]/80", else: "text-[#5a4f42]")
-            ]}>
-              <%= @message.user.username || "Anonymous" %>
-              <%= if @is_recognized do %>
-                <span class="text-[#3a3330] ml-1">•</span>
-              <% end %>
-            </p>
-          <% end %>
-          <p class="text-[#e8dcc8] text-sm leading-relaxed"><%= @message.content %></p>
-          <div class="flex items-center justify-between mt-2">
-            <p class="text-[10px] text-[#3a3330] tracking-wide">
-              <%= Calendar.strftime(@message.inserted_at, "%H:%M") %>
-            </p>
-            <!-- Affirm/Dismiss buttons or feedback indicator -->
-            <%= if !@is_own do %>
-              <%= cond do %>
-                <% @feedback_type == :affirm -> %>
-                  <!-- Already affirmed indicator -->
-                  <div class="flex items-center gap-1 text-[#8b9a7d]">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    <span class="text-[10px] uppercase tracking-wider">Affirmed</span>
-                  </div>
-                <% @feedback_type == :dismiss -> %>
-                  <!-- Already dismissed indicator -->
-                  <div class="flex items-center gap-1 text-[#d4756a]">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                    <span class="text-[10px] uppercase tracking-wider">Dismissed</span>
-                  </div>
-                <% @can_give_feedback -> %>
-                  <!-- Feedback buttons -->
-                  <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <button
-                      phx-click="affirm_message"
-                      phx-value-id={@message.id}
-                      class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#8b9a7d] transition-colors px-2 py-0.5 border border-transparent hover:border-[#8b9a7d]/30"
-                      title="Affirm this message"
-                    >
-                      Affirm
-                    </button>
-                    <button
-                      phx-click="dismiss_message"
-                      phx-value-id={@message.id}
-                      class="text-[10px] uppercase tracking-wider text-[#5a4f42] hover:text-[#d4756a] transition-colors px-2 py-0.5 border border-transparent hover:border-[#d4756a]/30"
-                      title="Dismiss this message"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                <% true -> %>
-                  <!-- On cooldown - show nothing -->
-              <% end %>
-            <% end %>
+    <div class="group" data-message-id={@message.id}>
+      <div class="flex items-start gap-3">
+        <!-- Timestamp -->
+        <span class="text-[9px] font-mono text-[#3a3530] w-10 pt-0.5 flex-shrink-0">
+          <%= Calendar.strftime(@message.inserted_at, "%H:%M") %>
+        </span>
+        <!-- Username -->
+        <span class={[
+          "text-xs font-mono w-24 truncate flex-shrink-0 pt-0.5",
+          cond do
+            @is_own -> "text-[#8b9a7d]"
+            @is_recognized -> "text-[#c9a962]"
+            true -> "text-[#6a6258]"
+          end
+        ]}>
+          <%= if @is_own do %>you<% else %><%= @message.user && @message.user.username || "anon" %><% end %>
+        </span>
+        <!-- Message content -->
+        <p class="flex-1 text-sm font-mono text-[#c8c0b4] leading-relaxed"><%= @message.content %></p>
+        <!-- Feedback buttons (Lumon terminology: affirm/dismiss) -->
+        <%= if @can_give_feedback do %>
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <button
+              phx-click="affirm_message"
+              phx-value-id={@message.id}
+              class="px-2 py-0.5 text-[8px] font-mono uppercase tracking-widest text-[#4a4540] hover:text-[#8b9a7d] hover:bg-[#8b9a7d]/10 border border-transparent hover:border-[#8b9a7d]/30 transition-all duration-200"
+              title="Affirm this contribution"
+            >
+              affirm
+            </button>
+            <button
+              phx-click="dismiss_message"
+              phx-value-id={@message.id}
+              class="px-2 py-0.5 text-[8px] font-mono uppercase tracking-widest text-[#4a4540] hover:text-[#d4756a] hover:bg-[#d4756a]/10 border border-transparent hover:border-[#d4756a]/30 transition-all duration-200"
+              title="Dismiss this contribution"
+            >
+              dismiss
+            </button>
           </div>
-        </div>
+        <% else %>
+          <%= if @feedback_type do %>
+            <span class={[
+              "text-[8px] font-mono uppercase tracking-widest",
+              if(@feedback_type == :affirm, do: "text-[#8b9a7d]", else: "text-[#d4756a]")
+            ]}>
+              <%= if @feedback_type == :affirm, do: "affirmed", else: "dismissed" %>
+            </span>
+          <% end %>
+        <% end %>
       </div>
     </div>
     """
@@ -1032,6 +987,56 @@ defmodule GridroomWeb.NodeLive do
   defp resonance_tooltip_color(_, true, false), do: "text-[#c9a962]"
   defp resonance_tooltip_color(_, _, true), do: "text-[#c9a962]"
   defp resonance_tooltip_color(_, _, _), do: "text-[#8a7d6d]"
+
+  # Bucket color system - 6 distinct colors for up to 6 buckets
+  # Each entry has: active classes, inactive classes, and ring color for presence
+  @bucket_colors [
+    %{active: "border-[#c9a962] bg-[#c9a962]/20 text-[#c9a962]",
+      inactive: "border-[#3a3530] text-[#4a4540] hover:border-[#c9a962] hover:text-[#c9a962]",
+      ring: "#c9a962"},      # Gold
+    %{active: "border-[#7eb8da] bg-[#7eb8da]/20 text-[#7eb8da]",
+      inactive: "border-[#3a3530] text-[#4a4540] hover:border-[#7eb8da] hover:text-[#7eb8da]",
+      ring: "#7eb8da"},      # Blue
+    %{active: "border-[#8b9a7d] bg-[#8b9a7d]/20 text-[#8b9a7d]",
+      inactive: "border-[#3a3530] text-[#4a4540] hover:border-[#8b9a7d] hover:text-[#8b9a7d]",
+      ring: "#8b9a7d"},      # Sage
+    %{active: "border-[#d4756a] bg-[#d4756a]/20 text-[#d4756a]",
+      inactive: "border-[#3a3530] text-[#4a4540] hover:border-[#d4756a] hover:text-[#d4756a]",
+      ring: "#d4756a"},      # Coral
+    %{active: "border-[#b49ddb] bg-[#b49ddb]/20 text-[#b49ddb]",
+      inactive: "border-[#3a3530] text-[#4a4540] hover:border-[#b49ddb] hover:text-[#b49ddb]",
+      ring: "#b49ddb"},      # Lavender
+    %{active: "border-[#e8c094] bg-[#e8c094]/20 text-[#e8c094]",
+      inactive: "border-[#3a3530] text-[#4a4540] hover:border-[#e8c094] hover:text-[#e8c094]",
+      ring: "#e8c094"}       # Peach
+  ]
+
+  defp bucket_color_classes(index, is_current) do
+    color = Enum.at(@bucket_colors, index, List.first(@bucket_colors))
+    if is_current, do: color.active, else: color.inactive
+  end
+
+  defp bucket_ring_color(index) do
+    color = Enum.at(@bucket_colors, index, List.first(@bucket_colors))
+    color.ring
+  end
+
+  # Find which bucket indices a user shares with the current user (excluding current node)
+  defp shared_bucket_indices(user_id, buckets, current_node_id) do
+    # We need to check Presence data for other buckets to see if user is there
+    # For now, we'll check if the user's ID appears in presence of other bucket nodes
+    # This requires querying presence for each bucket - return empty for now,
+    # the full implementation needs presence subscription for other nodes
+    buckets
+    |> Enum.with_index()
+    |> Enum.filter(fn {bucket, _idx} -> bucket.id != current_node_id end)
+    |> Enum.filter(fn {bucket, _idx} ->
+      # Check if user is present in this bucket's node
+      presence_list = Presence.list_users_in_node(bucket.id)
+      Enum.any?(presence_list, fn {id, _} -> id == user_id end)
+    end)
+    |> Enum.map(fn {_bucket, idx} -> idx end)
+  end
 
   # Highlight card for top affirmed messages
   attr :message, :map, required: true
