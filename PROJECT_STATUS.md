@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-024-streaming-messages-pagination]]
-**Branch**: feat/T-2025-024-streaming-messages-pagination
-**Goal**: Implement lazy-loading messages with LiveView streams
+**Active Task**: None
+**Branch**: main
+**Goal**: Select next task from backlog
 
 ---
 
@@ -29,7 +29,6 @@
 - [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
 - [[T-2025-011-portal-system]] - Portal system with energy cost
 - [[T-2025-012-node-creation-cost-proximity]] - Node creation cost by proximity
-- [[T-2025-024-streaming-messages-pagination]] - Streaming messages with lazy loading (LiveView streams)
 
 ### Low Priority (P3)
 - [[T-2025-008-ai-avatar-generation]] - AI avatar generation for auth users
@@ -41,9 +40,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-024-streaming-messages-pagination]] - Streaming messages with LiveView streams for lazy loading
 - [[T-2025-023-gemini-google-search-grounding]] - Gemini Google Search grounding + decay/scheduler cleanup
 - [[T-2025-022-mdr-folder-system]] - MDR folder system for discussion categories (Sports, Gossip, Tech, etc.)
-- [[T-2025-021-persistent-dismissed-discussions]] - Persistent dismissed discussions + Innie Chat rebrand
 
 ---
 

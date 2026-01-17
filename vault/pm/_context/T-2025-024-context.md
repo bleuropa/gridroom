@@ -2,7 +2,7 @@
 
 **Task**: [[T-2025-024-streaming-messages-pagination]]
 **Created**: 2026-01-17
-**Status**: In Progress
+**Status**: Completed
 
 ## Overview
 
@@ -140,10 +140,23 @@ Hooks.MessageScroll = {
 - [Phoenix LiveView Streams](https://hexdocs.pm/phoenix_live_view/Phoenix.LiveView.html#stream/3)
 - Chris McCord's ElixirConf demos on infinite scroll
 
-## Next Steps
+## Completion Notes
 
-1. Run `/s T-2025-024` to start work
-2. Research current message loading in NodeLive
-3. Implement pagination query
-4. Add stream support
-5. Test with large datasets
+**Completed**: 2026-01-17
+**Outcome**: Implemented LiveView streams for efficient message lazy loading with infinite scroll.
+
+### What was done:
+- Added `list_messages_paginated/2` with cursor-based pagination
+- Converted NodeLive to use `stream/3` for messages
+- Added `load_more_messages` event handler
+- Created `MessageStream` JS hook for scroll position management
+- Created `InfiniteScroll` JS hook with IntersectionObserver
+- Initial load: 50 messages, scroll loads 25 more per batch
+- Highlights overlay now fetches from DB on demand
+
+### Answers to open questions:
+- Initial load: 50 messages (configurable via @initial_messages_limit)
+- Loading indicator shows "loading..." text when fetching
+- New messages handled via stream_insert, auto-scrolls if user at bottom
+
+All core functionality implemented. Task closed.
