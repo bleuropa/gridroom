@@ -6,11 +6,13 @@
 
 ## Overview
 
-Pods are private groups within discussions. While any user can join a discussion (by adding it to their bucket), pods create a second layer of privacy - a curated group that can have their own conversation thread visible only to pod members.
+Pods are **global private groups** that exist independently of discussions. While any user can join a discussion (by adding it to their bucket), pods create a second layer of privacy - a curated group that can have their own conversation thread visible only to pod members.
+
+**Key Architecture**: Pods are standalone entities, but currently the only interaction surface is within discussions. When viewing a discussion, pod members can toggle to a "pod view" to see/send messages only visible to their pod mates.
 
 **Core Concept**: A discussion has two "layers":
 1. **General** - The existing public discussion (visible to all discussion participants)
-2. **Pod(s)** - Private threads visible only to pod members
+2. **Pod(s)** - Private threads visible only to pod members (same pod can be used across multiple discussions)
 
 ## User Flow
 
@@ -44,7 +46,7 @@ Pods are private groups within discussions. While any user can join a discussion
 ```elixir
 schema "pods" do
   field :name, :string
-  field :node_id, :binary_id  # Which discussion this pod belongs to
+  # NO node_id - pods are global, not tied to a single discussion
 
   belongs_to :creator, User
   has_many :memberships, PodMembership
@@ -70,16 +72,28 @@ end
 ### Message Changes
 ```elixir
 # Add to existing message schema
-field :pod_id, :binary_id  # null = general discussion
+# Messages already have node_id (which discussion)
+# Adding pod_id scopes within that discussion
+field :pod_id, :binary_id  # null = general discussion, non-null = pod-specific
 field :forwarded_from_id, :binary_id  # if forwarded, original message id
 ```
 
+**Message Visibility Logic**:
+- `pod_id = null` → visible in general discussion view
+- `pod_id = X` → visible only in pod X's view within that discussion
+- Same pod can have separate message threads in different discussions (messages scoped by both node_id AND pod_id)
+
 ## Key Decisions
 
-- **Pod scope**: Pods are per-discussion (not global)
+- **Pods are global entities** - Pods exist as standalone records, NOT scoped to a single discussion
+- **Discussion is the interaction surface** - Currently, the only way to interact with a pod is from within a discussion (toggle to pod view)
 - **Invitation required**: Can't join pods without invite (vs. open join)
 - **Message separation**: Pod messages are completely separate from general
 - **Forward attribution**: TBD - show original author or forwarder?
+
+### Future Possibilities (out of scope for now)
+- View which discussions your pod mates currently have in their bucket bars
+- Pods could have their own shared bucket bars
 
 ## Open Questions
 
