@@ -22,28 +22,25 @@ defmodule GridroomWeb.UserLoginLive do
       <div class="w-full max-w-md px-6 relative z-10">
         <!-- Boot sequence header -->
         <div class="text-center mb-12">
-          <!-- Glitchy logo -->
+          <!-- Terminal logo -->
           <div class="relative inline-block mb-8">
-            <div class="boot-logo w-16 h-16 mx-auto relative">
-              <!-- Outer ring -->
-              <svg viewBox="0 0 64 64" class="w-full h-full absolute inset-0">
-                <circle
-                  cx="32" cy="32" r="28"
-                  fill="none"
-                  stroke="#4a4540"
-                  stroke-width="1"
-                  stroke-dasharray="4 4"
-                  class="animate-spin-slow"
-                />
-              </svg>
-              <!-- Inner symbol -->
-              <svg viewBox="0 0 64 64" class="w-full h-full absolute inset-0 glitch-flicker">
-                <circle cx="32" cy="32" r="8" fill="#8b9a7d" opacity="0.8" />
-                <circle cx="32" cy="32" r="12" fill="none" stroke="#8b9a7d" stroke-width="1" opacity="0.5" />
+            <div class="w-20 h-20 mx-auto relative">
+              <svg viewBox="0 0 80 80" class="w-full h-full">
+                <!-- Outer frame -->
+                <rect x="8" y="8" width="64" height="64" fill="none" stroke="#2a2522" stroke-width="1" />
+                <rect x="12" y="12" width="56" height="56" fill="none" stroke="#3a3530" stroke-width="0.5" />
+
+                <!-- Terminal cursor/prompt -->
+                <rect x="24" y="35" width="4" height="10" fill="#8b9a7d" class="terminal-cursor" />
+
+                <!-- Decorative scan line -->
+                <line x1="20" y1="28" x2="60" y2="28" stroke="#2a2522" stroke-width="0.5" />
+                <line x1="20" y1="52" x2="60" y2="52" stroke="#2a2522" stroke-width="0.5" />
+
+                <!-- Status indicator -->
+                <circle cx="56" cy="20" r="2" fill="#8b9a7d" opacity="0.8" class="status-blink" />
               </svg>
             </div>
-            <!-- Glitch overlay -->
-            <div class="absolute inset-0 glitch-overlay"></div>
           </div>
 
           <!-- System messages -->
@@ -157,24 +154,21 @@ defmodule GridroomWeb.UserLoginLive do
     </div>
 
     <style>
-      @keyframes spin-slow {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+      @keyframes cursor-blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
       }
-      .animate-spin-slow {
-        animation: spin-slow 20s linear infinite;
+      .terminal-cursor {
+        animation: cursor-blink 1s step-end infinite;
       }
 
-      @keyframes glitch-flicker {
-        0%, 100% { opacity: 0.8; }
-        92% { opacity: 0.8; }
-        93% { opacity: 0.2; transform: translate(2px, 0); }
-        94% { opacity: 0.8; transform: translate(-1px, 0); }
+      @keyframes status-blink {
+        0%, 90% { opacity: 0.8; }
         95% { opacity: 0.3; }
-        96% { opacity: 0.8; transform: translate(0, 0); }
+        100% { opacity: 0.8; }
       }
-      .glitch-flicker {
-        animation: glitch-flicker 4s ease-in-out infinite;
+      .status-blink {
+        animation: status-blink 3s ease-in-out infinite;
       }
 
       @keyframes boot-in {

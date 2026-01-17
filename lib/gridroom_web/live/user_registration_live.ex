@@ -31,32 +31,24 @@ defmodule GridroomWeb.UserRegistrationLive do
       <div class="w-full max-w-md px-6 relative z-10">
         <!-- Boot sequence header -->
         <div class="text-center mb-10">
-          <!-- Glitchy logo -->
+          <!-- Terminal logo - new innie variant -->
           <div class="relative inline-block mb-8">
-            <div class="boot-logo w-16 h-16 mx-auto relative">
-              <!-- Outer ring - pulsing -->
-              <svg viewBox="0 0 64 64" class="w-full h-full absolute inset-0">
-                <circle
-                  cx="32" cy="32" r="28"
-                  fill="none"
-                  stroke="#4a4540"
-                  stroke-width="1"
-                  stroke-dasharray="8 4"
-                  class="animate-spin-slow"
-                />
-                <circle
-                  cx="32" cy="32" r="24"
-                  fill="none"
-                  stroke="#3a3530"
-                  stroke-width="0.5"
-                  class="animate-pulse-slow"
-                />
-              </svg>
-              <!-- Inner symbol - new innie -->
-              <svg viewBox="0 0 64 64" class="w-full h-full absolute inset-0 glitch-flicker">
-                <circle cx="32" cy="32" r="6" fill="#c9a962" opacity="0.9" />
-                <circle cx="32" cy="32" r="10" fill="none" stroke="#c9a962" stroke-width="1" opacity="0.4" />
-                <circle cx="32" cy="32" r="14" fill="none" stroke="#c9a962" stroke-width="0.5" opacity="0.2" />
+            <div class="w-20 h-20 mx-auto relative">
+              <svg viewBox="0 0 80 80" class="w-full h-full">
+                <!-- Outer frame -->
+                <rect x="8" y="8" width="64" height="64" fill="none" stroke="#2a2522" stroke-width="1" />
+                <rect x="12" y="12" width="56" height="56" fill="none" stroke="#3a3530" stroke-width="0.5" />
+
+                <!-- Plus symbol for new innie -->
+                <line x1="40" y1="30" x2="40" y2="50" stroke="#c9a962" stroke-width="2" />
+                <line x1="30" y1="40" x2="50" y2="40" stroke="#c9a962" stroke-width="2" />
+
+                <!-- Decorative scan lines -->
+                <line x1="20" y1="24" x2="60" y2="24" stroke="#2a2522" stroke-width="0.5" />
+                <line x1="20" y1="56" x2="60" y2="56" stroke="#2a2522" stroke-width="0.5" />
+
+                <!-- Status indicator - pulsing for new -->
+                <circle cx="56" cy="20" r="2" fill="#c9a962" class="status-pulse" />
               </svg>
             </div>
           </div>
@@ -197,32 +189,12 @@ defmodule GridroomWeb.UserRegistrationLive do
     </div>
 
     <style>
-      @keyframes spin-slow {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-      .animate-spin-slow {
-        animation: spin-slow 20s linear infinite;
-      }
-
-      @keyframes pulse-slow {
-        0%, 100% { opacity: 0.3; }
-        50% { opacity: 0.6; }
-      }
-      .animate-pulse-slow {
-        animation: pulse-slow 3s ease-in-out infinite;
-      }
-
-      @keyframes glitch-flicker {
+      @keyframes status-pulse {
         0%, 100% { opacity: 0.9; }
-        92% { opacity: 0.9; }
-        93% { opacity: 0.3; transform: translate(1px, 0); }
-        94% { opacity: 0.9; transform: translate(-1px, 0); }
-        95% { opacity: 0.4; }
-        96% { opacity: 0.9; transform: translate(0, 0); }
+        50% { opacity: 0.4; }
       }
-      .glitch-flicker {
-        animation: glitch-flicker 5s ease-in-out infinite;
+      .status-pulse {
+        animation: status-pulse 2s ease-in-out infinite;
       }
 
       @keyframes boot-in {
