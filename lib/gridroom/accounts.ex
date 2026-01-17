@@ -3,8 +3,11 @@ defmodule Gridroom.Accounts do
   The Accounts context - manages users (both anonymous and registered).
   """
 
+  import Ecto.Query
+
   alias Gridroom.Repo
   alias Gridroom.Accounts.User
+  alias Gridroom.Accounts.UserDismissedNode
 
   ## User queries
 
@@ -52,21 +55,17 @@ defmodule Gridroom.Accounts do
   Optionally preserves glyph from an existing anonymous user.
   """
   def register_user(attrs, opts \\ []) do
-    # If an anonymous user is provided, inherit their glyph
+    alias Gridroom.Accounts.Glyphs
+
+    # If an anonymous user is provided, inherit their glyph_id
     attrs =
       case Keyword.get(opts, :anonymous_user) do
-        %User{glyph_shape: shape, glyph_color: color} ->
-          Map.merge(%{"glyph_shape" => shape, "glyph_color" => color}, attrs)
+        %User{glyph_id: glyph_id} when is_integer(glyph_id) ->
+          Map.merge(%{"glyph_id" => glyph_id}, attrs)
 
         _ ->
           # New user gets random glyph
-          Map.merge(
-            %{
-              "glyph_shape" => Enum.random(User.glyph_shapes()),
-              "glyph_color" => Enum.random(User.glyph_colors())
-            },
-            attrs
-          )
+          Map.merge(%{"glyph_id" => Glyphs.random_id()}, attrs)
       end
 
     %User{}
@@ -112,14 +111,19 @@ defmodule Gridroom.Accounts do
   end
 
   @doc """
-  Adds a node ID to user's buckets if not full.
-  Returns {:ok, user} or {:error, :buckets_full}.
+  Adds a node ID to user's buckets if not full and not already present.
+  Returns {:ok, user}, {:error, :buckets_full}, or {:error, :already_bucketed}.
   """
   def add_to_buckets(%User{bucket_ids: bucket_ids} = user, node_id) do
-    if length(bucket_ids) < 6 do
-      update_buckets(user, bucket_ids ++ [node_id])
-    else
-      {:error, :buckets_full}
+    cond do
+      node_id in bucket_ids ->
+        {:error, :already_bucketed}
+
+      length(bucket_ids) >= 6 ->
+        {:error, :buckets_full}
+
+      true ->
+        update_buckets(user, bucket_ids ++ [node_id])
     end
   end
 
@@ -136,5 +140,45 @@ defmodule Gridroom.Accounts do
   """
   def clear_buckets(%User{} = user) do
     update_buckets(user, [])
+  end
+
+  ## Dismissal Management
+
+  @doc """
+  Dismisses a node for a user. The node won't appear in emergence again.
+  Uses upsert to handle duplicates gracefully.
+  """
+  def dismiss_node(%User{id: user_id}, node_id) do
+    %UserDismissedNode{}
+    |> UserDismissedNode.changeset(%{
+      user_id: user_id,
+      node_id: node_id,
+      dismissed_at: DateTime.utc_now()
+    })
+    |> Repo.insert(
+      on_conflict: :nothing,
+      conflict_target: [:user_id, :node_id]
+    )
+  end
+
+  @doc """
+  Returns list of node IDs that user has dismissed.
+  """
+  def list_dismissed_node_ids(%User{id: user_id}) do
+    from(d in UserDismissedNode,
+      where: d.user_id == ^user_id,
+      select: d.node_id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Checks if a user has dismissed a specific node.
+  """
+  def node_dismissed?(%User{id: user_id}, node_id) do
+    from(d in UserDismissedNode,
+      where: d.user_id == ^user_id and d.node_id == ^node_id
+    )
+    |> Repo.exists?()
   end
 end

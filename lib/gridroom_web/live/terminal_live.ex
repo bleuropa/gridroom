@@ -38,11 +38,21 @@ defmodule GridroomWeb.TerminalLive do
       Process.send_after(self(), :emerge_next, @emerge_delay_ms)
     end
 
-    # Load and shuffle nodes for discovery order
-    nodes = Grid.list_nodes_with_activity() |> Enum.shuffle()
-
     # Load user's saved buckets from DB, filtering out any that are "gone"
     buckets = load_user_buckets(user)
+    bucket_ids = Enum.map(buckets, & &1.id) |> MapSet.new()
+
+    # Load dismissed node IDs for this user
+    dismissed_ids = Accounts.list_dismissed_node_ids(user) |> MapSet.new()
+
+    # Combine: exclude both dismissed AND already-bucketed nodes
+    excluded_ids = MapSet.union(dismissed_ids, bucket_ids)
+
+    # Load and shuffle nodes for discovery order, excluding dismissed/bucketed ones
+    nodes =
+      Grid.list_nodes_with_activity()
+      |> Enum.reject(fn node -> MapSet.member?(excluded_ids, node.id) end)
+      |> Enum.shuffle()
 
     {:ok,
      socket
@@ -56,7 +66,7 @@ defmodule GridroomWeb.TerminalLive do
      |> assign(:active_bucket, nil)  # Currently viewing bucket index
      |> assign(:view_mode, :discover)  # :discover or :viewing
      |> assign(:drift_seed, :rand.uniform(1000))  # For drift variation
-     |> assign(:page_title, "Gridroom")
+     |> assign(:page_title, "Innie Chat")
      |> assign(:show_help, false)}
   end
 
@@ -110,8 +120,16 @@ defmodule GridroomWeb.TerminalLive do
 
   @impl true
   def handle_info({:node_created, node}, socket) do
-    # Add new nodes to front of queue
-    {:noreply, assign(socket, :queue, [node | socket.assigns.queue])}
+    user = socket.assigns.user
+    bucket_ids = Enum.map(socket.assigns.buckets, & &1.id)
+
+    # Only add if not dismissed and not already bucketed
+    if Accounts.node_dismissed?(user, node.id) or node.id in bucket_ids do
+      {:noreply, socket}
+    else
+      # Add new nodes to front of queue
+      {:noreply, assign(socket, :queue, [node | socket.assigns.queue])}
+    end
   end
 
   @impl true
@@ -125,6 +143,15 @@ defmodule GridroomWeb.TerminalLive do
   # Keybinds - always responsive, no waiting
   @impl true
   def handle_event("keydown", %{"key" => key}, socket) do
+    # Close help on any key press
+    if socket.assigns.show_help do
+      {:noreply, assign(socket, :show_help, false)}
+    else
+      handle_keydown(key, socket)
+    end
+  end
+
+  defp handle_keydown(key, socket) do
     has_current? = socket.assigns.current != nil
     in_discover? = socket.assigns.view_mode == :discover
     can_act? = socket.assigns.current_state in [:emerging, :present]
@@ -281,6 +308,11 @@ defmodule GridroomWeb.TerminalLive do
 
       {:error, :buckets_full} ->
         {:noreply, socket}
+
+      {:error, :already_bucketed} ->
+        # Already in buckets - just dismiss and move on
+        Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
+        {:noreply, assign(socket, :current_state, :skipping)}
     end
   end
 
@@ -297,6 +329,14 @@ defmodule GridroomWeb.TerminalLive do
   end
 
   defp dismiss_current(socket) do
+    current = socket.assigns.current
+    user = socket.assigns.user
+
+    # Persist dismissal to database
+    if current do
+      Accounts.dismiss_node(user, current.id)
+    end
+
     Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
     {:noreply, assign(socket, :current_state, :skipping)}
   end
@@ -384,14 +424,20 @@ defmodule GridroomWeb.TerminalLive do
         <.help_overlay />
       <% end %>
 
-      <!-- Auth - top left, minimal -->
-      <div class="absolute top-6 left-6 flex items-center gap-4">
-        <span class="text-[#2a2522] text-[10px] font-mono tracking-widest uppercase">Gridroom</span>
+      <!-- Auth - top left, Lumon style -->
+      <div class="absolute top-6 left-6 flex items-center gap-6">
+        <span class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase">Innie Chat</span>
         <%= if @logged_in do %>
-          <span class="text-[#3a3530] text-xs font-mono"><%= @user.username %></span>
+          <span class="text-[#5a4f42] text-xs font-mono tracking-wider"><%= @user.username %></span>
+          <.link href={~p"/logout"} method="delete" class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+            clock out
+          </.link>
         <% else %>
-          <.link navigate={~p"/login"} class="text-[#3a3530] hover:text-[#5a4f42] text-xs font-mono">
-            sign in
+          <.link navigate={~p"/login"} class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+            clock in
+          </.link>
+          <.link navigate={~p"/register"} class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+            request access
           </.link>
         <% end %>
       </div>

@@ -20,17 +20,18 @@ defmodule GridroomWeb.NodeLive do
 
   defp mount_with_node(node, id, session, socket) do
     # Check for logged-in user first, then fall back to anonymous session
-    user =
+    {user, logged_in} =
       case session["user_id"] do
         nil ->
           # Anonymous user - create from session token
           session_id = session["_csrf_token"] || Ecto.UUID.generate()
           {:ok, user} = Accounts.get_or_create_user(session_id)
-          user
+          {user, false}
 
         user_id ->
           # Logged-in user
-          Accounts.get_user(user_id)
+          user = Accounts.get_user(user_id)
+          {user, user != nil && user.username != nil}
       end
 
     # Check if user has enough resonance to enter
@@ -40,11 +41,11 @@ defmodule GridroomWeb.NodeLive do
        |> put_flash(:error, "Your resonance is too low to enter this space. Contribute positively elsewhere to rebuild.")
        |> push_navigate(to: ~p"/")}
     else
-      mount_node(socket, node, user, id)
+      mount_node(socket, node, user, id, logged_in)
     end
   end
 
-  defp mount_node(socket, node, user, id) do
+  defp mount_node(socket, node, user, id, logged_in) do
     # Subscribe to messages and presence for this node
     if connected?(socket) do
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "node:#{id}")
@@ -77,6 +78,7 @@ defmodule GridroomWeb.NodeLive do
      socket
      |> assign(:node, node)
      |> assign(:user, user)
+     |> assign(:logged_in, logged_in)
      |> assign(:messages, messages)
      |> assign(:present_users, present_users)
      |> assign(:remembered_user_ids, remembered_user_ids)
@@ -112,28 +114,33 @@ defmodule GridroomWeb.NodeLive do
 
   @impl true
   def handle_event("send_message", %{"content" => content}, socket) when content != "" do
-    node = socket.assigns.node
-    user = socket.assigns.user
+    # Block anonymous users from chatting
+    unless socket.assigns.logged_in do
+      {:noreply, socket}
+    else
+      node = socket.assigns.node
+      user = socket.assigns.user
 
-    # Stop typing indicator when sending
-    if socket.assigns.typing do
-      Presence.set_typing(self(), user, node.id, false)
-    end
+      # Stop typing indicator when sending
+      if socket.assigns.typing do
+        Presence.set_typing(self(), user, node.id, false)
+      end
 
-    case Grid.create_message(%{
-      content: String.trim(content),
-      node_id: node.id,
-      user_id: user.id
-    }) do
-      {:ok, _message} ->
-        {:noreply,
-         socket
-         |> assign(:message_form, to_form(%{"content" => ""}))
-         |> assign(:typing, false)
-         |> push_event("clear_input", %{id: "message-input"})}
+      case Grid.create_message(%{
+        content: String.trim(content),
+        node_id: node.id,
+        user_id: user.id
+      }) do
+        {:ok, _message} ->
+          {:noreply,
+           socket
+           |> assign(:message_form, to_form(%{"content" => ""}))
+           |> assign(:typing, false)
+           |> push_event("clear_input", %{id: "message-input"})}
 
-      {:error, _changeset} ->
-        {:noreply, socket}
+        {:error, _changeset} ->
+          {:noreply, socket}
+      end
     end
   end
 
@@ -484,29 +491,46 @@ defmodule GridroomWeb.NodeLive do
           </div>
         </div>
 
-        <!-- Input area - terminal style -->
+        <!-- Input area - terminal style (or login prompt for anonymous) -->
         <div class="px-6 py-4">
-          <.form for={@message_form} phx-submit="send_message" class="flex gap-3">
-            <div class="flex-1 relative">
-              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a4540] text-sm font-mono">></span>
-              <input
-                type="text"
-                name="content"
-                id="message-input"
-                phx-hook="TypingIndicator"
-                value={@message_form[:content].value}
-                placeholder=""
-                class="w-full bg-transparent border border-[#2a2520]/50 pl-7 pr-4 py-3 text-[#e8e0d4] font-mono text-sm placeholder-[#3a3530] focus:outline-none focus:border-[#4a4540] transition-colors duration-200"
-                autocomplete="off"
-              />
+          <%= if @logged_in do %>
+            <.form for={@message_form} phx-submit="send_message" class="flex gap-3">
+              <div class="flex-1 relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a4540] text-sm font-mono">></span>
+                <input
+                  type="text"
+                  name="content"
+                  id="message-input"
+                  phx-hook="TypingIndicator"
+                  value={@message_form[:content].value}
+                  placeholder=""
+                  class="w-full bg-transparent border border-[#2a2520]/50 pl-7 pr-4 py-3 text-[#e8e0d4] font-mono text-sm placeholder-[#3a3530] focus:outline-none focus:border-[#4a4540] transition-colors duration-200"
+                  autocomplete="off"
+                />
+              </div>
+              <button
+                type="submit"
+                class="px-6 py-3 border border-[#4a4540]/50 text-[#8a8278] text-[10px] font-mono uppercase tracking-widest hover:border-[#6a6258] hover:text-[#a8a298] transition-colors duration-200"
+              >
+                send
+              </button>
+            </.form>
+          <% else %>
+            <!-- Login prompt for anonymous users -->
+            <div class="flex items-center justify-between py-2 px-4 border border-[#2a2520]/50 bg-[#1a1714]/30">
+              <p class="text-[#6a6258] text-xs font-mono">
+                <span class="text-[#4a4540]">></span> Induction required to participate
+              </p>
+              <div class="flex items-center gap-4">
+                <.link navigate={~p"/login"} class="text-[#8b9a7d] text-[10px] font-mono uppercase tracking-wider hover:text-[#a8b89d]">
+                  Clock in
+                </.link>
+                <.link navigate={~p"/register"} class="text-[#c9a962] text-[10px] font-mono uppercase tracking-wider hover:text-[#d9b972]">
+                  Request access
+                </.link>
+              </div>
             </div>
-            <button
-              type="submit"
-              class="px-6 py-3 border border-[#4a4540]/50 text-[#8a8278] text-[10px] font-mono uppercase tracking-widest hover:border-[#6a6258] hover:text-[#a8a298] transition-colors duration-200"
-            >
-              send
-            </button>
-          </.form>
+          <% end %>
         </div>
       </div>
 
@@ -745,23 +769,12 @@ defmodule GridroomWeb.NodeLive do
 
   attr :user, :map, required: true
   defp user_glyph(assigns) do
+    alias Gridroom.Accounts.User
+    color = User.glyph_color(assigns.user)
+    assigns = assign(assigns, :color, color)
+
     ~H"""
-    <%= case @user.glyph_shape do %>
-      <% "circle" -> %>
-        <circle r="10" fill={@user.glyph_color} />
-      <% "triangle" -> %>
-        <polygon points="0,-12 10.4,6 -10.4,6" fill={@user.glyph_color} />
-      <% "square" -> %>
-        <rect x="-8" y="-8" width="16" height="16" fill={@user.glyph_color} />
-      <% "diamond" -> %>
-        <polygon points="0,-10 10,0 0,10 -10,0" fill={@user.glyph_color} />
-      <% "hexagon" -> %>
-        <polygon points="8,0 4,6.9 -4,6.9 -8,0 -4,-6.9 4,-6.9" fill={@user.glyph_color} />
-      <% "pentagon" -> %>
-        <polygon points="0,-9 8.6,-2.8 5.3,7.3 -5.3,7.3 -8.6,-2.8" fill={@user.glyph_color} />
-      <% _ -> %>
-        <circle r="10" fill={@user.glyph_color || "#888"} />
-    <% end %>
+    <circle r="10" fill={@color} />
     """
   end
 
@@ -922,8 +935,9 @@ defmodule GridroomWeb.NodeLive do
   attr :user, :map, default: nil
   attr :is_own, :boolean, default: false
   defp message_glyph(assigns) do
-    user = assigns.user || %{glyph_shape: "circle", glyph_color: "#5a4f42"}
-    assigns = assign(assigns, :user, user)
+    alias Gridroom.Accounts.User
+    color = if assigns.user, do: User.glyph_color(assigns.user), else: "hsl(30, 20%, 35%)"
+    assigns = assign(assigns, :color, color)
 
     ~H"""
     <!-- Subtle glow for own messages -->
@@ -939,22 +953,7 @@ defmodule GridroomWeb.NodeLive do
       </defs>
     <% end %>
     <g filter={if @is_own, do: "url(#glyph-glow)"}>
-      <%= case @user.glyph_shape do %>
-        <% "circle" -> %>
-          <circle r="8" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "triangle" -> %>
-          <polygon points="0,-9 7.8,4.5 -7.8,4.5" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "square" -> %>
-          <rect x="-6" y="-6" width="12" height="12" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "diamond" -> %>
-          <polygon points="0,-8 8,0 0,8 -8,0" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "hexagon" -> %>
-          <polygon points="6,0 3,5.2 -3,5.2 -6,0 -3,-5.2 3,-5.2" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% "pentagon" -> %>
-          <polygon points="0,-7 6.7,-2.2 4.1,5.7 -4.1,5.7 -6.7,-2.2" fill={@user.glyph_color} opacity={if @is_own, do: "1", else: "0.85"} />
-        <% _ -> %>
-          <circle r="8" fill={@user.glyph_color || "#5a4f42"} opacity={if @is_own, do: "1", else: "0.85"} />
-      <% end %>
+      <circle r="8" fill={@color} opacity={if @is_own, do: "1", else: "0.85"} />
     </g>
     """
   end
@@ -1041,28 +1040,17 @@ defmodule GridroomWeb.NodeLive do
   # Highlight card for top affirmed messages
   attr :message, :map, required: true
   defp highlight_card(assigns) do
+    alias Gridroom.Accounts.User
+    color = if assigns.message.user, do: User.glyph_color(assigns.message.user), else: "hsl(30, 20%, 35%)"
+    assigns = assign(assigns, :glyph_color, color)
+
     ~H"""
     <div class="flex-shrink-0 w-72 bg-[#141210] border border-[#c9a962]/20 p-3 hover:border-[#c9a962]/40 transition-colors">
       <!-- Header with user and affirm count -->
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center gap-2">
           <svg width="16" height="16" viewBox="-8 -8 16 16">
-            <%= case @message.user && @message.user.glyph_shape do %>
-              <% "circle" -> %>
-                <circle r="5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "triangle" -> %>
-                <polygon points="0,-6 5.2,3 -5.2,3" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "square" -> %>
-                <rect x="-4" y="-4" width="8" height="8" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "diamond" -> %>
-                <polygon points="0,-5 5,0 0,5 -5,0" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "hexagon" -> %>
-                <polygon points="4,0 2,3.5 -2,3.5 -4,0 -2,-3.5 2,-3.5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% "pentagon" -> %>
-                <polygon points="0,-5 4.8,-1.5 3,4 -3,4 -4.8,-1.5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-              <% _ -> %>
-                <circle r="5" fill={@message.user && @message.user.glyph_color || "#5a4f42"} />
-            <% end %>
+            <circle r="5" fill={@glyph_color} />
           </svg>
           <span class="text-[10px] uppercase tracking-wider text-[#5a4f42]">
             <%= (@message.user && @message.user.username) || "Anonymous" %>
