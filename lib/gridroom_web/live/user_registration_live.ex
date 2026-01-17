@@ -111,7 +111,7 @@ defmodule GridroomWeb.UserRegistrationLive do
           <div class="space-y-4">
             <div>
               <label for="username" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-2">
-                Select Designation
+                Name
               </label>
               <input
                 type="text"

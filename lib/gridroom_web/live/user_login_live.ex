@@ -48,11 +48,8 @@ defmodule GridroomWeb.UserLoginLive do
             <p class="text-[#3a3530] text-[10px] font-mono tracking-wider boot-line-1">
               INNIE CHAT TERMINAL v2.1.0
             </p>
-            <p class="text-[#3a3530] text-[10px] font-mono tracking-wider boot-line-2">
-              MACRODATA REFINEMENT INTERFACE
-            </p>
-            <p class="text-[#4a4540] text-[10px] font-mono tracking-wider boot-line-3">
-              ══════════════════════════════════
+            <p class="text-[#4a4540] text-[10px] font-mono tracking-wider boot-line-2">
+              ════════════════════════════
             </p>
           </div>
 
@@ -82,7 +79,7 @@ defmodule GridroomWeb.UserLoginLive do
           <div class="space-y-4">
             <div>
               <label for="username" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-2">
-                Designation
+                Name
               </label>
               <input
                 type="text"
