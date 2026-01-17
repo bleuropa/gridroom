@@ -61,12 +61,18 @@ From terminal implementation:
 3. Apply atmosphere layers
 4. Iterate on message styling
 
-## Auto-saved State (2026-01-16 20:48)
+## Session Notes
 
-Recent commits:
-- chore: start work on T-2025-020
-- chore: create task T-2025-020
-- feat: Severance MDR terminal aesthetic overhaul
+### 2026-01-16 Session
+- Applied full Lumon terminal aesthetic to node_live.ex (atmosphere layers, font-mono, warm colors)
+- Added color-coded bucket system: 6 slots with distinct colors (gold, blue, sage, coral, lavender, peach)
+- Moved buckets into presence row to avoid overlapping input area
+- Added presence rings showing users who share your other buckets
+- Restored affirm/dismiss buttons on messages with Lumon terminology
+- Added keyboard controls: Enter=focus input, 1-6=bucket nav, Space(hold)=highlights overlay
+- Highlights overlay shows top 5 most affirmed messages when space held
 
-**Note**: This entry was auto-generated before memory compaction.
+### Open Questions Resolved
+- Timestamps: Visible in compact format (HH:MM)
+- Bucket prominence: Inline with presence row, not separate bar
 
