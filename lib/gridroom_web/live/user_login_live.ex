@@ -9,7 +9,7 @@ defmodule GridroomWeb.UserLoginLive do
      socket
      |> assign(:form, to_form(%{"username" => "", "password" => ""}))
      |> assign(:error, error)
-     |> assign(:page_title, "Sign In")}
+     |> assign(:page_title, "Clock In")}
   end
 
   def render(assigns) do
@@ -18,8 +18,9 @@ defmodule GridroomWeb.UserLoginLive do
       <div class="w-full max-w-sm">
         <!-- Header -->
         <div class="text-center mb-8">
-          <h1 class="text-[#e8e0d5] text-2xl font-light tracking-wide mb-2">Welcome Back</h1>
-          <p class="text-[#8a7d6d] text-sm">Sign in to your account</p>
+          <p class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase mb-4">Innie Chat</p>
+          <h1 class="text-[#e8e0d5] text-2xl font-light tracking-wide mb-2">Welcome, Innie</h1>
+          <p class="text-[#8a7d6d] text-sm font-mono">Clock in to resume your work</p>
         </div>
 
         <!-- Error message -->
@@ -34,7 +35,7 @@ defmodule GridroomWeb.UserLoginLive do
           <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
 
           <div>
-            <label for="username" class="block text-[#c4b8a8] text-sm mb-1">Username</label>
+            <label for="username" class="block text-[#c4b8a8] text-sm mb-1 font-mono">Designation</label>
             <input
               type="text"
               name="username"
@@ -43,14 +44,14 @@ defmodule GridroomWeb.UserLoginLive do
                      text-[#e8e0d5] placeholder-[#5a4f42]
                      focus:border-[#c4915a] focus:ring-1 focus:ring-[#c4915a] focus:outline-none
                      transition-colors"
-              placeholder="Your username"
+              placeholder="Your designation"
               autocomplete="username"
               required
             />
           </div>
 
           <div>
-            <label for="password" class="block text-[#c4b8a8] text-sm mb-1">Password</label>
+            <label for="password" class="block text-[#c4b8a8] text-sm mb-1 font-mono">Access Code</label>
             <input
               type="password"
               name="password"
@@ -59,7 +60,7 @@ defmodule GridroomWeb.UserLoginLive do
                      text-[#e8e0d5] placeholder-[#5a4f42]
                      focus:border-[#c4915a] focus:ring-1 focus:ring-[#c4915a] focus:outline-none
                      transition-colors"
-              placeholder="Your password"
+              placeholder="Your access code"
               autocomplete="current-password"
               required
             />
@@ -73,21 +74,21 @@ defmodule GridroomWeb.UserLoginLive do
                    transition-all duration-200
                    focus:outline-none focus:ring-2 focus:ring-[#dba76f] focus:ring-offset-2 focus:ring-offset-[#0d0b0a]"
           >
-            Sign In
+            Clock In
           </button>
         </form>
 
         <!-- Links -->
         <div class="mt-6 text-center space-y-2">
-          <p class="text-[#5a4f42] text-sm">
-            Don't have an account?
+          <p class="text-[#5a4f42] text-sm font-mono">
+            Not yet inducted?
             <.link navigate={~p"/register"} class="text-[#dba76f] hover:text-[#e8b87a]">
-              Create one
+              Request access
             </.link>
           </p>
-          <p class="text-[#3a3530] text-xs">
+          <p class="text-[#3a3530] text-xs font-mono">
             <.link navigate={~p"/"} class="hover:text-[#5a4f42]">
-              ← Continue as guest
+              ← Continue unverified
             </.link>
           </p>
         </div>

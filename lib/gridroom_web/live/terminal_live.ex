@@ -66,7 +66,7 @@ defmodule GridroomWeb.TerminalLive do
      |> assign(:active_bucket, nil)  # Currently viewing bucket index
      |> assign(:view_mode, :discover)  # :discover or :viewing
      |> assign(:drift_seed, :rand.uniform(1000))  # For drift variation
-     |> assign(:page_title, "Gridroom")
+     |> assign(:page_title, "Innie Chat")
      |> assign(:show_help, false)}
   end
 
@@ -415,14 +415,20 @@ defmodule GridroomWeb.TerminalLive do
         <.help_overlay />
       <% end %>
 
-      <!-- Auth - top left, minimal -->
-      <div class="absolute top-6 left-6 flex items-center gap-4">
-        <span class="text-[#2a2522] text-[10px] font-mono tracking-widest uppercase">Gridroom</span>
+      <!-- Auth - top left, Lumon style -->
+      <div class="absolute top-6 left-6 flex items-center gap-6">
+        <span class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase">Innie Chat</span>
         <%= if @logged_in do %>
-          <span class="text-[#3a3530] text-xs font-mono"><%= @user.username %></span>
+          <span class="text-[#5a4f42] text-xs font-mono tracking-wider"><%= @user.username %></span>
+          <.link navigate={~p"/logout"} method="delete" class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+            clock out
+          </.link>
         <% else %>
-          <.link navigate={~p"/login"} class="text-[#3a3530] hover:text-[#5a4f42] text-xs font-mono">
-            sign in
+          <.link navigate={~p"/login"} class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+            clock in
+          </.link>
+          <.link navigate={~p"/register"} class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+            request access
           </.link>
         <% end %>
       </div>

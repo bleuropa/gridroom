@@ -18,7 +18,7 @@ defmodule GridroomWeb.UserRegistrationLive do
      socket
      |> assign(:anonymous_user, anonymous_user)
      |> assign(:error, error)
-     |> assign(:page_title, "Register")}
+     |> assign(:page_title, "Induction")}
   end
 
   def render(assigns) do
@@ -27,8 +27,9 @@ defmodule GridroomWeb.UserRegistrationLive do
       <div class="w-full max-w-sm">
         <!-- Header -->
         <div class="text-center mb-8">
-          <h1 class="text-[#e8e0d5] text-2xl font-light tracking-wide mb-2">Join Gridroom</h1>
-          <p class="text-[#8a7d6d] text-sm">Pick a username. No email required.</p>
+          <p class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase mb-4">Innie Chat</p>
+          <h1 class="text-[#e8e0d5] text-2xl font-light tracking-wide mb-2">Innie Induction</h1>
+          <p class="text-[#8a7d6d] text-sm font-mono">Select your designation. No personal data required.</p>
         </div>
 
         <!-- Glyph preview -->
@@ -40,7 +41,7 @@ defmodule GridroomWeb.UserRegistrationLive do
                   <circle r="12" fill={@anonymous_user.glyph_color} opacity="0.9" />
                 </svg>
               </div>
-              <p class="text-[#5a4f42] text-xs">Your glyph will be preserved</p>
+              <p class="text-[#5a4f42] text-xs font-mono">Your glyph will be assigned</p>
             </div>
           </div>
         <% end %>
@@ -57,7 +58,7 @@ defmodule GridroomWeb.UserRegistrationLive do
           <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
 
           <div>
-            <label for="username" class="block text-[#c4b8a8] text-sm mb-1">Username</label>
+            <label for="username" class="block text-[#c4b8a8] text-sm mb-1 font-mono">Designation</label>
             <input
               type="text"
               name="user[username]"
@@ -73,7 +74,7 @@ defmodule GridroomWeb.UserRegistrationLive do
           </div>
 
           <div>
-            <label for="password" class="block text-[#c4b8a8] text-sm mb-1">Password</label>
+            <label for="password" class="block text-[#c4b8a8] text-sm mb-1 font-mono">Access Code</label>
             <input
               type="password"
               name="user[password]"
@@ -96,30 +97,30 @@ defmodule GridroomWeb.UserRegistrationLive do
                    transition-all duration-200
                    focus:outline-none focus:ring-2 focus:ring-[#dba76f] focus:ring-offset-2 focus:ring-offset-[#0d0b0a]"
           >
-            Create Account
+            Complete Induction
           </button>
         </form>
 
         <!-- Links -->
         <div class="mt-6 text-center space-y-2">
-          <p class="text-[#5a4f42] text-sm">
-            Already have an account?
+          <p class="text-[#5a4f42] text-sm font-mono">
+            Already inducted?
             <.link navigate={~p"/login"} class="text-[#dba76f] hover:text-[#e8b87a]">
-              Sign in
+              Clock in
             </.link>
           </p>
-          <p class="text-[#3a3530] text-xs">
+          <p class="text-[#3a3530] text-xs font-mono">
             <.link navigate={~p"/"} class="hover:text-[#5a4f42]">
-              ← Back to grid
+              ← Return to emergence
             </.link>
           </p>
         </div>
 
         <!-- Note -->
         <div class="mt-8 p-4 bg-[#1c1917] rounded-lg border border-[#2a2522]">
-          <p class="text-[#5a4f42] text-xs leading-relaxed">
-            No email means no password reset. If you forget your password,
-            you'll need to create a new account. Choose wisely.
+          <p class="text-[#5a4f42] text-xs leading-relaxed font-mono">
+            Your outie has no access to this information. If you forget your access code,
+            a new induction will be required.
           </p>
         </div>
       </div>
