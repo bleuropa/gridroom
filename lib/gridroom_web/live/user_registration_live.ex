@@ -11,7 +11,6 @@ defmodule GridroomWeb.UserRegistrationLive do
         token -> Accounts.get_user_by_session(token)
       end
 
-    # Check for error flash from failed registration
     error = Phoenix.Flash.get(socket.assigns.flash, :error)
 
     {:ok,
@@ -23,108 +22,219 @@ defmodule GridroomWeb.UserRegistrationLive do
 
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-[#0d0b0a] flex items-center justify-center px-4">
-      <div class="w-full max-w-sm">
-        <!-- Header -->
-        <div class="text-center mb-8">
-          <p class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase mb-4">Innie Chat</p>
-          <h1 class="text-[#e8e0d5] text-2xl font-light tracking-wide mb-2">Innie Induction</h1>
-          <p class="text-[#8a7d6d] text-sm font-mono">Select your designation. No personal data required.</p>
+    <div class="fixed inset-0 lumon-terminal overflow-hidden flex items-center justify-center">
+      <!-- CRT atmosphere layers -->
+      <div class="pointer-events-none fixed inset-0 lumon-vignette"></div>
+      <div class="pointer-events-none fixed inset-0 lumon-scanlines"></div>
+      <div class="pointer-events-none fixed inset-0 lumon-glow"></div>
+
+      <div class="w-full max-w-md px-6 relative z-10">
+        <!-- Boot sequence header -->
+        <div class="text-center mb-10">
+          <!-- Glitchy logo -->
+          <div class="relative inline-block mb-8">
+            <div class="boot-logo w-16 h-16 mx-auto relative">
+              <!-- Outer ring - pulsing -->
+              <svg viewBox="0 0 64 64" class="w-full h-full absolute inset-0">
+                <circle
+                  cx="32" cy="32" r="28"
+                  fill="none"
+                  stroke="#4a4540"
+                  stroke-width="1"
+                  stroke-dasharray="8 4"
+                  class="animate-spin-slow"
+                />
+                <circle
+                  cx="32" cy="32" r="24"
+                  fill="none"
+                  stroke="#3a3530"
+                  stroke-width="0.5"
+                  class="animate-pulse-slow"
+                />
+              </svg>
+              <!-- Inner symbol - new innie -->
+              <svg viewBox="0 0 64 64" class="w-full h-full absolute inset-0 glitch-flicker">
+                <circle cx="32" cy="32" r="6" fill="#c9a962" opacity="0.9" />
+                <circle cx="32" cy="32" r="10" fill="none" stroke="#c9a962" stroke-width="1" opacity="0.4" />
+                <circle cx="32" cy="32" r="14" fill="none" stroke="#c9a962" stroke-width="0.5" opacity="0.2" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- System messages -->
+          <div class="space-y-1 mb-6">
+            <p class="text-[#3a3530] text-[10px] font-mono tracking-wider boot-line-1">
+              INNIE CHAT TERMINAL v2.1.0
+            </p>
+            <p class="text-[#c9a962]/60 text-[10px] font-mono tracking-wider boot-line-2">
+              NEW INNIE INDUCTION PROTOCOL
+            </p>
+            <p class="text-[#4a4540] text-[10px] font-mono tracking-wider boot-line-3">
+              ══════════════════════════════════
+            </p>
+          </div>
+
+          <!-- Welcome message -->
+          <h1 class="text-[#e8e0d5] text-xl font-mono tracking-wide mb-2 boot-line-4">
+            Induction Process
+          </h1>
+          <p class="text-[#6a6258] text-xs font-mono boot-line-5">
+            You are beginning your journey as an Innie.
+          </p>
         </div>
 
         <!-- Glyph preview -->
         <%= if @anonymous_user do %>
-          <div class="flex justify-center mb-6">
-            <div class="text-center">
-              <div class="w-12 h-12 mx-auto mb-2 flex items-center justify-center">
+          <div class="flex justify-center mb-6 boot-line-5">
+            <div class="text-center p-4 border border-[#2a2522] bg-[#1a1714]/50">
+              <div class="w-10 h-10 mx-auto mb-2 flex items-center justify-center">
                 <svg viewBox="-20 -20 40 40" class="w-full h-full">
-                  <circle r="12" fill={@anonymous_user.glyph_color} opacity="0.9" />
+                  <circle r="10" fill={@anonymous_user.glyph_color} opacity="0.9" />
                 </svg>
               </div>
-              <p class="text-[#5a4f42] text-xs font-mono">Your glyph will be assigned</p>
+              <p class="text-[#4a4540] text-[9px] font-mono tracking-wider uppercase">
+                Assigned Glyph
+              </p>
             </div>
           </div>
         <% end %>
 
         <!-- Error message -->
         <%= if @error do %>
-          <div class="mb-4 p-3 bg-[#2a1a1a] border border-[#d4756a] rounded-lg">
-            <p class="text-[#d4756a] text-sm"><%= @error %></p>
+          <div class="mb-6 p-3 border border-[#d4756a]/50 bg-[#d4756a]/10">
+            <p class="text-[#d4756a] text-xs font-mono flex items-center gap-2">
+              <span class="text-[10px]">▲</span>
+              INDUCTION ERROR: <%= @error %>
+            </p>
           </div>
         <% end %>
 
-        <!-- Registration form - posts to session controller -->
-        <form action={~p"/register"} method="post" class="space-y-4">
+        <!-- Registration form - terminal style -->
+        <form action={~p"/register"} method="post" class="space-y-6">
           <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
 
-          <div>
-            <label for="username" class="block text-[#c4b8a8] text-sm mb-1 font-mono">Designation</label>
-            <input
-              type="text"
-              name="user[username]"
-              id="username"
-              class="w-full px-4 py-3 bg-[#1c1917] border border-[#2a2522] rounded-lg
-                     text-[#e8e0d5] placeholder-[#5a4f42]
-                     focus:border-[#c4915a] focus:ring-1 focus:ring-[#c4915a] focus:outline-none
-                     transition-colors"
-              placeholder="3-20 characters"
-              autocomplete="username"
-              required
-            />
-          </div>
+          <div class="space-y-4">
+            <div>
+              <label for="username" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-2">
+                Select Designation
+              </label>
+              <input
+                type="text"
+                name="user[username]"
+                id="username"
+                class="w-full px-4 py-3 bg-transparent border border-[#2a2522]
+                       text-[#e8e0d5] placeholder-[#3a3530] font-mono
+                       focus:border-[#c9a962] focus:outline-none
+                       transition-colors"
+                placeholder="3-20 characters"
+                autocomplete="username"
+                required
+              />
+            </div>
 
-          <div>
-            <label for="password" class="block text-[#c4b8a8] text-sm mb-1 font-mono">Access Code</label>
-            <input
-              type="password"
-              name="user[password]"
-              id="password"
-              class="w-full px-4 py-3 bg-[#1c1917] border border-[#2a2522] rounded-lg
-                     text-[#e8e0d5] placeholder-[#5a4f42]
-                     focus:border-[#c4915a] focus:ring-1 focus:ring-[#c4915a] focus:outline-none
-                     transition-colors"
-              placeholder="8+ characters"
-              autocomplete="new-password"
-              required
-            />
+            <div>
+              <label for="password" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-2">
+                Create Access Code
+              </label>
+              <input
+                type="password"
+                name="user[password]"
+                id="password"
+                class="w-full px-4 py-3 bg-transparent border border-[#2a2522]
+                       text-[#e8e0d5] placeholder-[#3a3530] font-mono
+                       focus:border-[#c9a962] focus:outline-none
+                       transition-colors"
+                placeholder="8+ characters"
+                autocomplete="new-password"
+                required
+              />
+            </div>
           </div>
 
           <button
             type="submit"
-            class="w-full py-3 bg-gradient-to-r from-[#dba76f] to-[#c4915a]
-                   text-[#0d0b0a] font-medium rounded-lg
-                   hover:from-[#e8b87a] hover:to-[#d4a06a]
-                   transition-all duration-200
-                   focus:outline-none focus:ring-2 focus:ring-[#dba76f] focus:ring-offset-2 focus:ring-offset-[#0d0b0a]"
+            class="w-full py-3 border border-[#c9a962] text-[#c9a962]
+                   text-sm font-mono uppercase tracking-wider
+                   hover:bg-[#c9a962]/10 transition-colors"
           >
-            Complete Induction
+            [ Complete Induction ]
           </button>
         </form>
 
-        <!-- Links -->
-        <div class="mt-6 text-center space-y-2">
-          <p class="text-[#5a4f42] text-sm font-mono">
+        <!-- Warning notice -->
+        <div class="mt-6 p-3 border border-[#2a2522] bg-[#1a1714]/30">
+          <p class="text-[#4a4540] text-[10px] font-mono leading-relaxed">
+            <span class="text-[#c9a962]/60">NOTE:</span> Your outie cannot access this terminal.
+            If you forget your access code, a new induction will be required.
+            Your current session data will be preserved.
+          </p>
+        </div>
+
+        <!-- Footer links -->
+        <div class="mt-8 pt-6 border-t border-[#1a1714] text-center space-y-3">
+          <p class="text-[#4a4540] text-[10px] font-mono">
             Already inducted?
-            <.link navigate={~p"/login"} class="text-[#dba76f] hover:text-[#e8b87a]">
-              Clock in
+            <.link navigate={~p"/login"} class="text-[#8b9a7d] hover:text-[#a8b89d] ml-1">
+              Clock in →
             </.link>
           </p>
-          <p class="text-[#3a3530] text-xs font-mono">
+          <p class="text-[#3a3530] text-[10px] font-mono">
             <.link navigate={~p"/"} class="hover:text-[#5a4f42]">
               ← Return to emergence
             </.link>
           </p>
         </div>
 
-        <!-- Note -->
-        <div class="mt-8 p-4 bg-[#1c1917] rounded-lg border border-[#2a2522]">
-          <p class="text-[#5a4f42] text-xs leading-relaxed font-mono">
-            Your outie has no access to this information. If you forget your access code,
-            a new induction will be required.
-          </p>
+        <!-- Status bar -->
+        <div class="mt-8 flex items-center justify-center gap-4 text-[#2a2522] text-[9px] font-mono">
+          <span>SYS:OK</span>
+          <span>•</span>
+          <span>INDUCTION:READY</span>
+          <span>•</span>
+          <span class="text-[#c9a962]/50">●</span>
         </div>
       </div>
     </div>
+
+    <style>
+      @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin-slow {
+        animation: spin-slow 20s linear infinite;
+      }
+
+      @keyframes pulse-slow {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.6; }
+      }
+      .animate-pulse-slow {
+        animation: pulse-slow 3s ease-in-out infinite;
+      }
+
+      @keyframes glitch-flicker {
+        0%, 100% { opacity: 0.9; }
+        92% { opacity: 0.9; }
+        93% { opacity: 0.3; transform: translate(1px, 0); }
+        94% { opacity: 0.9; transform: translate(-1px, 0); }
+        95% { opacity: 0.4; }
+        96% { opacity: 0.9; transform: translate(0, 0); }
+      }
+      .glitch-flicker {
+        animation: glitch-flicker 5s ease-in-out infinite;
+      }
+
+      @keyframes boot-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .boot-line-1 { animation: boot-in 0.3s ease-out 0.1s both; }
+      .boot-line-2 { animation: boot-in 0.3s ease-out 0.2s both; }
+      .boot-line-3 { animation: boot-in 0.3s ease-out 0.3s both; }
+      .boot-line-4 { animation: boot-in 0.3s ease-out 0.5s both; }
+      .boot-line-5 { animation: boot-in 0.3s ease-out 0.6s both; }
+    </style>
     """
   end
 end

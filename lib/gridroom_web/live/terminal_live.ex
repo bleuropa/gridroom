@@ -420,7 +420,7 @@ defmodule GridroomWeb.TerminalLive do
         <span class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase">Innie Chat</span>
         <%= if @logged_in do %>
           <span class="text-[#5a4f42] text-xs font-mono tracking-wider"><%= @user.username %></span>
-          <.link navigate={~p"/logout"} method="delete" class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+          <.link href={~p"/logout"} method="delete" class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
             clock out
           </.link>
         <% else %>
