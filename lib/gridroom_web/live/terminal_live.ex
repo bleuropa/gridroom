@@ -38,11 +38,21 @@ defmodule GridroomWeb.TerminalLive do
       Process.send_after(self(), :emerge_next, @emerge_delay_ms)
     end
 
-    # Load and shuffle nodes for discovery order
-    nodes = Grid.list_nodes_with_activity() |> Enum.shuffle()
-
     # Load user's saved buckets from DB, filtering out any that are "gone"
     buckets = load_user_buckets(user)
+    bucket_ids = Enum.map(buckets, & &1.id) |> MapSet.new()
+
+    # Load dismissed node IDs for this user
+    dismissed_ids = Accounts.list_dismissed_node_ids(user) |> MapSet.new()
+
+    # Combine: exclude both dismissed AND already-bucketed nodes
+    excluded_ids = MapSet.union(dismissed_ids, bucket_ids)
+
+    # Load and shuffle nodes for discovery order, excluding dismissed/bucketed ones
+    nodes =
+      Grid.list_nodes_with_activity()
+      |> Enum.reject(fn node -> MapSet.member?(excluded_ids, node.id) end)
+      |> Enum.shuffle()
 
     {:ok,
      socket
@@ -110,8 +120,16 @@ defmodule GridroomWeb.TerminalLive do
 
   @impl true
   def handle_info({:node_created, node}, socket) do
-    # Add new nodes to front of queue
-    {:noreply, assign(socket, :queue, [node | socket.assigns.queue])}
+    user = socket.assigns.user
+    bucket_ids = Enum.map(socket.assigns.buckets, & &1.id)
+
+    # Only add if not dismissed and not already bucketed
+    if Accounts.node_dismissed?(user, node.id) or node.id in bucket_ids do
+      {:noreply, socket}
+    else
+      # Add new nodes to front of queue
+      {:noreply, assign(socket, :queue, [node | socket.assigns.queue])}
+    end
   end
 
   @impl true
@@ -281,6 +299,11 @@ defmodule GridroomWeb.TerminalLive do
 
       {:error, :buckets_full} ->
         {:noreply, socket}
+
+      {:error, :already_bucketed} ->
+        # Already in buckets - just dismiss and move on
+        Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
+        {:noreply, assign(socket, :current_state, :skipping)}
     end
   end
 
@@ -297,6 +320,14 @@ defmodule GridroomWeb.TerminalLive do
   end
 
   defp dismiss_current(socket) do
+    current = socket.assigns.current
+    user = socket.assigns.user
+
+    # Persist dismissal to database
+    if current do
+      Accounts.dismiss_node(user, current.id)
+    end
+
     Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
     {:noreply, assign(socket, :current_state, :skipping)}
   end
