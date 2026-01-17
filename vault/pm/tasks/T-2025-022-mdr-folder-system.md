@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-022
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-17
 updated: 2026-01-17
@@ -11,26 +11,26 @@ updated: 2026-01-17
 
 ## Task Details
 **Task ID**: T-2025-022
-**Status**: In Progress
+**Status**: Completed
 **Priority**: P1 (High)
 **Branch**: feat/T-2025-022-mdr-folder-system
 **Created**: 2026-01-17
 **Started**: 2026-01-17
-**Completed**:
+**Completed**: 2026-01-17
 
 ## Description
 Implement a Macro Data Refinement-inspired folder system for organizing discussions by category on the terminal emergence page. Folders represent different topic areas (sports, gossip, tech, politics, etc.) and are displayed at the top of the interface. Users can cycle through folders one at a time, refining discussions within each folder via spacebar or x. When all topics in a folder are refined, it displays a completed visual state with a Lumon wellness message thanking the innie.
 
 ## Checklist
-- [ ] Design folder data model and database schema
-- [ ] Create Oban jobs for each folder category to fetch daily topics via Grok X-search
-- [ ] Create system prompts specific to each folder category
-- [ ] Build folder display UI at top of terminal emergence page
-- [ ] Implement folder cycling navigation (one at a time)
-- [ ] Track refinement progress per folder per user
-- [ ] Design and implement folder completion visual state
-- [ ] Create Lumon wellness messages for each folder category
-- [ ] Wire up spacebar/x refinement to folder progress tracking
+- [x] Design folder data model and database schema
+- [x] Create GenServer scheduler for each folder category to fetch daily topics via Grok X-search
+- [x] Create system prompts specific to each folder category
+- [x] Build folder display UI at top of terminal emergence page
+- [x] Implement folder cycling navigation (one at a time)
+- [x] Track refinement progress per folder per user
+- [x] Design and implement folder completion visual state
+- [x] Create Lumon wellness messages for each folder category
+- [x] Wire up spacebar/x refinement to folder progress tracking
 
 ## Technical Details
 ### Approach

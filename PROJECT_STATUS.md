@@ -7,9 +7,7 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-022-mdr-folder-system]] - MDR Folder System
-**Branch**: feat/T-2025-022-mdr-folder-system
-**Goal**: Implement MDR-inspired folders for categorizing discussions with completion tracking
+No active task. Ready for next priority.
 
 ---
 
@@ -40,9 +38,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-022-mdr-folder-system]] - MDR folder system for discussion categories (Sports, Gossip, Tech, etc.)
 - [[T-2025-021-persistent-dismissed-discussions]] - Persistent dismissed discussions + Innie Chat rebrand
 - [[T-2025-019-corridor-navigation]] - Lumon terminal emergence interface (pivoted from corridor to emergence-style discovery)
-- [[T-2025-018-grok-api-trend-nodes]] - Grok API integration for trend-based node generation
 
 ---
 
