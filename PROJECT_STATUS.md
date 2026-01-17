@@ -29,6 +29,7 @@
 - [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
 - [[T-2025-011-portal-system]] - Portal system with energy cost
 - [[T-2025-012-node-creation-cost-proximity]] - Node creation cost by proximity
+- [[T-2025-024-streaming-messages-pagination]] - Streaming messages with lazy loading (LiveView streams)
 
 ### Low Priority (P3)
 - [[T-2025-008-ai-avatar-generation]] - AI avatar generation for auth users
