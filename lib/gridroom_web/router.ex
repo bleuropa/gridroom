@@ -24,6 +24,7 @@ defmodule GridroomWeb.Router do
     # Auth routes
     live "/register", UserRegistrationLive, :new
     live "/login", UserLoginLive, :new
+    live "/clocked-out", ClockOutLive, :index
 
     # Session handling
     post "/register", UserSessionController, :register

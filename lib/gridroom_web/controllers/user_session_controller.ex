@@ -50,7 +50,6 @@ defmodule GridroomWeb.UserSessionController do
   def delete(conn, _params) do
     conn
     |> delete_session(:user_id)
-    |> put_flash(:info, "Logged out successfully.")
-    |> redirect(to: ~p"/")
+    |> redirect(to: ~p"/clocked-out")
   end
 end
