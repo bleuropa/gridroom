@@ -1048,3 +1048,14 @@ input:focus, textarea:focus, button:focus {
 .animate-flicker {
   animation: subtle-flicker 4s ease-in-out infinite;
 }
+
+/* Dark radial vignette for terminal void */
+.bg-radial-dark {
+  background: radial-gradient(
+    ellipse 70% 50% at 50% 50%,
+    transparent 0%,
+    transparent 30%,
+    rgba(0, 0, 0, 0.4) 70%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+}
