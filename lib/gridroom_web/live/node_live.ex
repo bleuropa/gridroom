@@ -103,6 +103,7 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:current_pod_id, nil)
      |> assign(:show_create_pod_modal, false)
      |> assign(:show_invite_modal, false)
+     |> assign(:invite_error, nil)
      |> assign(:message_form, to_form(%{"content" => ""}))
      |> assign(:page_title, node.title)
      |> assign(:og_title, "#{node.title} - Gridroom")
@@ -431,12 +432,18 @@ defmodule GridroomWeb.NodeLive do
 
   @impl true
   def handle_event("show_invite_modal", _params, socket) do
-    {:noreply, assign(socket, :show_invite_modal, true)}
+    {:noreply,
+     socket
+     |> assign(:show_invite_modal, true)
+     |> assign(:invite_error, nil)}
   end
 
   @impl true
   def handle_event("hide_invite_modal", _params, socket) do
-    {:noreply, assign(socket, :show_invite_modal, false)}
+    {:noreply,
+     socket
+     |> assign(:show_invite_modal, false)
+     |> assign(:invite_error, nil)}
   end
 
   @impl true
@@ -446,15 +453,41 @@ defmodule GridroomWeb.NodeLive do
     if pod_id && Pods.member?(pod_id, socket.assigns.user.id) do
       case Pods.invite_user(pod_id, user_id, socket.assigns.user.id) do
         {:ok, _membership} ->
-          {:noreply, socket}
+          {:noreply, assign(socket, :invite_error, nil)}
 
         {:error, _} ->
-          {:noreply, socket}
+          {:noreply, assign(socket, :invite_error, "Already invited or member")}
       end
     else
       {:noreply, socket}
     end
   end
+
+  @impl true
+  def handle_event("invite_by_username", %{"username" => username}, socket) when username != "" do
+    pod_id = socket.assigns.current_pod_id
+    username = String.trim(username)
+
+    if pod_id && Pods.member?(pod_id, socket.assigns.user.id) do
+      case Accounts.get_user_by_username(username) do
+        nil ->
+          {:noreply, assign(socket, :invite_error, "User not found")}
+
+        user ->
+          case Pods.invite_user(pod_id, user.id, socket.assigns.user.id) do
+            {:ok, _membership} ->
+              {:noreply, assign(socket, :invite_error, nil)}
+
+            {:error, _} ->
+              {:noreply, assign(socket, :invite_error, "Already invited or member")}
+          end
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("invite_by_username", _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_info(:hide_copied_toast, socket) do
@@ -753,6 +786,7 @@ defmodule GridroomWeb.NodeLive do
           present_users={@present_users}
           current_user_id={@user.id}
           current_pod={Enum.find(@user_pods, & &1.id == @current_pod_id)}
+          invite_error={@invite_error}
         />
       <% end %>
     </div>
@@ -877,12 +911,14 @@ defmodule GridroomWeb.NodeLive do
   attr :present_users, :map, required: true
   attr :current_user_id, :string, required: true
   attr :current_pod, :map, required: true
+  attr :invite_error, :string, default: nil
   defp invite_to_pod_modal(assigns) do
-    # Filter out current user and get other present users
+    # Filter out current user and get other present users (registered only)
     other_users =
       assigns.present_users
       |> Enum.reject(fn {id, _} -> id == assigns.current_user_id end)
       |> Enum.map(fn {_id, presence} -> presence end)
+      |> Enum.filter(& &1.username)
 
     assigns = assign(assigns, :other_users, other_users)
 
@@ -903,27 +939,49 @@ defmodule GridroomWeb.NodeLive do
           </button>
         </div>
 
-        <%= if Enum.empty?(@other_users) do %>
-          <p class="text-[#5a5248] text-sm font-mono text-center py-4">
-            No other users present to invite.
-          </p>
-        <% else %>
-          <div class="space-y-2">
-            <p class="text-[#5a5248] text-[10px] uppercase tracking-widest mb-3">Present Users</p>
-            <%= for user <- @other_users do %>
-              <div class="flex items-center justify-between py-2 px-3 border border-[#1a1714] hover:border-[#2a2520] transition-colors">
-                <span class="text-[#c8c0b4] text-sm font-mono">
-                  <%= user.username || "anon" %>
-                </span>
-                <button
-                  phx-click="invite_to_pod"
-                  phx-value-user-id={user.user_id}
-                  class="px-3 py-1 text-[9px] font-mono uppercase tracking-widest text-[#c9a962]/70 hover:text-[#c9a962] border border-[#c9a962]/20 hover:border-[#c9a962]/40 transition-all"
-                >
-                  invite
-                </button>
-              </div>
-            <% end %>
+        <!-- Invite by username form -->
+        <form phx-submit="invite_by_username" class="mb-6">
+          <label class="block text-[#5a5248] text-[10px] uppercase tracking-widest mb-2">Invite by Username</label>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              name="username"
+              placeholder="Enter username"
+              class="flex-1 bg-transparent border border-[#2a2520] px-3 py-2 text-[#e8e0d4] font-mono text-sm placeholder-[#3a3530] focus:outline-none focus:border-[#4a4540] transition-colors"
+              autocomplete="off"
+            />
+            <button
+              type="submit"
+              class="px-4 py-2 border border-[#c9a962]/40 bg-[#c9a962]/10 text-[#c9a962] text-[10px] font-mono uppercase tracking-widest hover:bg-[#c9a962]/20 transition-colors"
+            >
+              invite
+            </button>
+          </div>
+          <%= if @invite_error do %>
+            <p class="text-[#d4756a] text-[10px] font-mono mt-2"><%= @invite_error %></p>
+          <% end %>
+        </form>
+
+        <!-- Quick invite from present users -->
+        <%= if length(@other_users) > 0 do %>
+          <div class="border-t border-[#1a1714] pt-4">
+            <p class="text-[#5a5248] text-[10px] uppercase tracking-widest mb-3">Or invite someone here</p>
+            <div class="space-y-2">
+              <%= for user <- @other_users do %>
+                <div class="flex items-center justify-between py-2 px-3 border border-[#1a1714] hover:border-[#2a2520] transition-colors">
+                  <span class="text-[#c8c0b4] text-sm font-mono">
+                    <%= user.username %>
+                  </span>
+                  <button
+                    phx-click="invite_to_pod"
+                    phx-value-user-id={user.user_id}
+                    class="px-3 py-1 text-[9px] font-mono uppercase tracking-widest text-[#c9a962]/70 hover:text-[#c9a962] border border-[#c9a962]/20 hover:border-[#c9a962]/40 transition-all"
+                  >
+                    invite
+                  </button>
+                </div>
+              <% end %>
+            </div>
           </div>
         <% end %>
 
