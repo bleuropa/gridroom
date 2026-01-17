@@ -28,12 +28,12 @@ defmodule GridroomWeb.UserRegistrationLive do
       <div class="pointer-events-none fixed inset-0 lumon-scanlines"></div>
       <div class="pointer-events-none fixed inset-0 lumon-glow"></div>
 
-      <div class="w-full max-w-md px-6 relative z-10">
+      <div class="w-full max-w-md px-6 py-8 relative z-10 overflow-y-auto max-h-screen">
         <!-- Boot sequence header -->
-        <div class="text-center mb-10">
+        <div class="text-center mb-6">
           <!-- Terminal logo - new innie variant -->
-          <div class="relative inline-block mb-8">
-            <div class="w-20 h-20 mx-auto relative">
+          <div class="relative inline-block mb-4">
+            <div class="w-14 h-14 mx-auto relative">
               <svg viewBox="0 0 80 80" class="w-full h-full">
                 <!-- Outer frame -->
                 <rect x="8" y="8" width="64" height="64" fill="none" stroke="#2a2522" stroke-width="1" />
@@ -54,71 +54,70 @@ defmodule GridroomWeb.UserRegistrationLive do
           </div>
 
           <!-- System messages -->
-          <div class="space-y-1 mb-6">
-            <p class="text-[#3a3530] text-[10px] font-mono tracking-wider boot-line-1">
+          <div class="space-y-0.5 mb-3">
+            <p class="text-[#3a3530] text-[9px] font-mono tracking-wider boot-line-1">
               INNIE CHAT TERMINAL v2.1.0
             </p>
-            <p class="text-[#c9a962]/60 text-[10px] font-mono tracking-wider boot-line-2">
-              NEW INNIE INDUCTION PROTOCOL
-            </p>
-            <p class="text-[#4a4540] text-[10px] font-mono tracking-wider boot-line-3">
-              ══════════════════════════════════
+            <p class="text-[#4a4540] text-[9px] font-mono tracking-wider boot-line-2">
+              ════════════════════════════
             </p>
           </div>
 
           <!-- Welcome message -->
-          <h1 class="text-[#e8e0d5] text-xl font-mono tracking-wide mb-2 boot-line-4">
+          <h1 class="text-[#e8e0d5] text-lg font-mono tracking-wide mb-1 boot-line-3">
             Induction Process
           </h1>
-          <p class="text-[#6a6258] text-xs font-mono boot-line-5">
-            You are beginning your journey as an Innie.
+          <p class="text-[#6a6258] text-[10px] font-mono boot-line-4">
+            Begin your journey as an Innie.
           </p>
         </div>
 
         <!-- Glyph preview -->
         <%= if @anonymous_user && @anonymous_user.glyph_id do %>
-          <div class="flex justify-center mb-6 boot-line-5">
-            <div class="text-center p-4 border border-[#2a2522] bg-[#1a1714]/50">
-              <div class="w-10 h-10 mx-auto mb-3 flex items-center justify-center">
+          <div class="flex justify-center mb-4 boot-line-5">
+            <div class="flex items-center gap-3 px-4 py-2 border border-[#2a2522] bg-[#1a1714]/50">
+              <div class="w-6 h-6 flex items-center justify-center">
                 <svg viewBox="-20 -20 40 40" class="w-full h-full">
                   <circle r="10" fill={Gridroom.Accounts.User.glyph_color(@anonymous_user)} opacity="0.9" />
                 </svg>
               </div>
-              <p class="text-[#6a6258] text-[10px] font-mono">
-                <%= Gridroom.Accounts.User.glyph_display_name(@anonymous_user) %>
-              </p>
-              <p class="text-[#3a3530] text-[8px] font-mono mt-1 tracking-wider uppercase">
-                Assigned Designation
-              </p>
+              <div>
+                <p class="text-[#6a6258] text-[10px] font-mono">
+                  <%= Gridroom.Accounts.User.glyph_display_name(@anonymous_user) %>
+                </p>
+                <p class="text-[#3a3530] text-[8px] font-mono tracking-wider uppercase">
+                  Assigned Designation
+                </p>
+              </div>
             </div>
           </div>
         <% end %>
 
         <!-- Error message -->
         <%= if @error do %>
-          <div class="mb-6 p-3 border border-[#d4756a]/50 bg-[#d4756a]/10">
-            <p class="text-[#d4756a] text-xs font-mono flex items-center gap-2">
-              <span class="text-[10px]">▲</span>
-              INDUCTION ERROR: <%= @error %>
+          <div class="mb-4 p-2 border border-[#d4756a]/50 bg-[#d4756a]/10">
+            <p class="text-[#d4756a] text-[10px] font-mono flex items-center gap-2">
+              <span class="text-[9px]">▲</span>
+              ERROR: <%= @error %>
             </p>
           </div>
         <% end %>
 
         <!-- Registration form - terminal style -->
-        <form action={~p"/register"} method="post" class="space-y-6">
+        <form action={~p"/register"} method="post" class="space-y-4">
           <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
 
-          <div class="space-y-4">
+          <div class="space-y-3">
             <div>
-              <label for="username" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-2">
+              <label for="username" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-1">
                 Name
               </label>
               <input
                 type="text"
                 name="user[username]"
                 id="username"
-                class="w-full px-4 py-3 bg-transparent border border-[#2a2522]
-                       text-[#e8e0d5] placeholder-[#3a3530] font-mono
+                class="w-full px-3 py-2 bg-transparent border border-[#2a2522]
+                       text-[#e8e0d5] placeholder-[#3a3530] font-mono text-sm
                        focus:border-[#c9a962] focus:outline-none
                        transition-colors"
                 placeholder="3-20 characters"
@@ -128,15 +127,15 @@ defmodule GridroomWeb.UserRegistrationLive do
             </div>
 
             <div>
-              <label for="password" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-2">
-                Create Access Code
+              <label for="password" class="block text-[#6a6258] text-[10px] font-mono tracking-wider uppercase mb-1">
+                Access Code
               </label>
               <input
                 type="password"
                 name="user[password]"
                 id="password"
-                class="w-full px-4 py-3 bg-transparent border border-[#2a2522]
-                       text-[#e8e0d5] placeholder-[#3a3530] font-mono
+                class="w-full px-3 py-2 bg-transparent border border-[#2a2522]
+                       text-[#e8e0d5] placeholder-[#3a3530] font-mono text-sm
                        focus:border-[#c9a962] focus:outline-none
                        transition-colors"
                 placeholder="8+ characters"
@@ -148,7 +147,7 @@ defmodule GridroomWeb.UserRegistrationLive do
 
           <button
             type="submit"
-            class="w-full py-3 border border-[#c9a962] text-[#c9a962]
+            class="w-full py-2 border border-[#c9a962] text-[#c9a962]
                    text-sm font-mono uppercase tracking-wider
                    hover:bg-[#c9a962]/10 transition-colors"
           >
@@ -157,16 +156,15 @@ defmodule GridroomWeb.UserRegistrationLive do
         </form>
 
         <!-- Warning notice -->
-        <div class="mt-6 p-3 border border-[#2a2522] bg-[#1a1714]/30">
-          <p class="text-[#4a4540] text-[10px] font-mono leading-relaxed">
+        <div class="mt-4 p-2 border border-[#2a2522] bg-[#1a1714]/30">
+          <p class="text-[#4a4540] text-[9px] font-mono leading-relaxed">
             <span class="text-[#c9a962]/60">NOTE:</span> Your outie cannot access this terminal.
-            If you forget your access code, a new induction will be required.
-            Your current session data will be preserved.
+            Forgot access code? New induction required.
           </p>
         </div>
 
         <!-- Footer links -->
-        <div class="mt-8 pt-6 border-t border-[#1a1714] text-center space-y-3">
+        <div class="mt-4 pt-4 border-t border-[#1a1714] text-center space-y-2">
           <p class="text-[#4a4540] text-[10px] font-mono">
             Already inducted?
             <.link navigate={~p"/login"} class="text-[#8b9a7d] hover:text-[#a8b89d] ml-1">
@@ -181,7 +179,7 @@ defmodule GridroomWeb.UserRegistrationLive do
         </div>
 
         <!-- Status bar -->
-        <div class="mt-8 flex items-center justify-center gap-4 text-[#2a2522] text-[9px] font-mono">
+        <div class="mt-4 flex items-center justify-center gap-4 text-[#2a2522] text-[9px] font-mono">
           <span>SYS:OK</span>
           <span>•</span>
           <span>INDUCTION:READY</span>
@@ -205,10 +203,10 @@ defmodule GridroomWeb.UserRegistrationLive do
         to { opacity: 1; transform: translateY(0); }
       }
       .boot-line-1 { animation: boot-in 0.3s ease-out 0.1s both; }
-      .boot-line-2 { animation: boot-in 0.3s ease-out 0.2s both; }
-      .boot-line-3 { animation: boot-in 0.3s ease-out 0.3s both; }
-      .boot-line-4 { animation: boot-in 0.3s ease-out 0.5s both; }
-      .boot-line-5 { animation: boot-in 0.3s ease-out 0.6s both; }
+      .boot-line-2 { animation: boot-in 0.3s ease-out 0.15s both; }
+      .boot-line-3 { animation: boot-in 0.3s ease-out 0.25s both; }
+      .boot-line-4 { animation: boot-in 0.3s ease-out 0.35s both; }
+      .boot-line-5 { animation: boot-in 0.3s ease-out 0.45s both; }
     </style>
     """
   end
