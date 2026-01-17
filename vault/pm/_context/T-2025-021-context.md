@@ -2,7 +2,7 @@
 
 **Task**: [[T-2025-021-persistent-dismissed-discussions]]
 **Created**: 2026-01-16
-**Status**: In Progress
+**Status**: Completed
 
 ## Overview
 
@@ -83,3 +83,24 @@ Recent commits:
 
 **Note**: This entry was auto-generated before memory compaction.
 
+## Completion Notes
+
+**Completed**: 2026-01-17
+**Outcome**: Dismissals now persist in database, surviving refresh and bucket clearing.
+
+### What Was Built
+- `user_dismissed_nodes` table with user/node unique constraint
+- Dismissal context functions in Accounts
+- Single-bucket enforcement (can't bucket same discussion twice)
+- Excluded dismissed nodes from emergence queue on mount
+
+### Additional Work
+- Rebranded to "Innie Chat" with Severance/Lumon terminology
+- Redesigned auth pages with CRT terminal boot aesthetic
+- Implemented 682 surreal glyph designations system
+- Required account to participate in chat (anonymous view-only)
+- Fixed CSS layout shift bug on overlay pages
+- Fixed help overlay "any key to close" functionality
+- Made registration page compact for smaller screens
+
+All acceptance criteria met. Task closed.

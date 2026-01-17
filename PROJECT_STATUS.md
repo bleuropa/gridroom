@@ -1,15 +1,13 @@
 # Project Status
 
-**Last Updated**: 2026-01-16
-**Project**: Gridroom
+**Last Updated**: 2026-01-17
+**Project**: Gridroom (Innie Chat)
 
 ---
 
 ## Current Focus
 
-**Active Task**: [[T-2025-021-persistent-dismissed-discussions]]
-**Branch**: feat/T-2025-021-persistent-dismissed-discussions
-**Goal**: Persist dismissed discussions in DB, enforce single-bucket per discussion
+No active task. Ready for next priority.
 
 ---
 
@@ -40,9 +38,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-021-persistent-dismissed-discussions]] - Persistent dismissed discussions + Innie Chat rebrand
 - [[T-2025-019-corridor-navigation]] - Lumon terminal emergence interface (pivoted from corridor to emergence-style discovery)
 - [[T-2025-018-grok-api-trend-nodes]] - Grok API integration for trend-based node generation
-- [[T-2025-017-resonance-presence-node-decay]] - Resonance meter, toasts, glyph effects, node decay
 
 ---
 
@@ -61,6 +59,7 @@
 - **Auth without email**: Username/password only, no password reset, accounts are disposable
 - **SVG rendering**: Using SVG for grid, nodes, and user glyphs
 - **Node decay**: Inactive nodes fade (1-7d quiet, 7-14d fading, 14d+ gone), activity revives them
+- **Glyph system**: 682 surreal designations (like "the goat" from Severance)
 
 ---
 
