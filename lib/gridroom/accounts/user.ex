@@ -16,6 +16,7 @@ defmodule Gridroom.Accounts.User do
     field :glyph_shape, :string, default: "circle"
     field :glyph_color, :string, default: "#D4A574"
     field :resonance, :integer, default: 50
+    field :bucket_ids, {:array, :binary_id}, default: []
 
     has_many :messages, Gridroom.Grid.Message
 
@@ -100,4 +101,12 @@ defmodule Gridroom.Accounts.User do
 
   def glyph_shapes, do: @glyph_shapes
   def glyph_colors, do: @glyph_colors
+
+  @doc """
+  Changeset for updating bucket IDs.
+  """
+  def bucket_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:bucket_ids])
+  end
 end

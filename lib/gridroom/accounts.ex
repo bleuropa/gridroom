@@ -96,4 +96,45 @@ defmodule Gridroom.Accounts do
       {:error, :invalid_credentials}
     end
   end
+
+  ## Bucket Management
+
+  @doc """
+  Updates the user's bucket IDs (max 6).
+  """
+  def update_buckets(%User{} = user, bucket_ids) when is_list(bucket_ids) do
+    # Ensure max 6 buckets
+    bucket_ids = Enum.take(bucket_ids, 6)
+
+    user
+    |> User.bucket_changeset(%{bucket_ids: bucket_ids})
+    |> Repo.update()
+  end
+
+  @doc """
+  Adds a node ID to user's buckets if not full.
+  Returns {:ok, user} or {:error, :buckets_full}.
+  """
+  def add_to_buckets(%User{bucket_ids: bucket_ids} = user, node_id) do
+    if length(bucket_ids) < 6 do
+      update_buckets(user, bucket_ids ++ [node_id])
+    else
+      {:error, :buckets_full}
+    end
+  end
+
+  @doc """
+  Removes a node ID from user's buckets by index.
+  """
+  def remove_from_buckets(%User{bucket_ids: bucket_ids} = user, index) when is_integer(index) do
+    new_ids = List.delete_at(bucket_ids, index)
+    update_buckets(user, new_ids)
+  end
+
+  @doc """
+  Clears all buckets for a user.
+  """
+  def clear_buckets(%User{} = user) do
+    update_buckets(user, [])
+  end
 end

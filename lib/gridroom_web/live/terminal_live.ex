@@ -38,6 +38,9 @@ defmodule GridroomWeb.TerminalLive do
     # Load and shuffle nodes for discovery order
     nodes = Grid.list_nodes_with_activity() |> Enum.shuffle()
 
+    # Load user's saved buckets from DB, filtering out any that are "gone"
+    buckets = load_user_buckets(user)
+
     {:ok,
      socket
      |> assign(:user, user)
@@ -45,13 +48,21 @@ defmodule GridroomWeb.TerminalLive do
      |> assign(:queue, nodes)  # Remaining nodes to show
      |> assign(:current, nil)  # Currently visible discussion
      |> assign(:current_state, :void)  # :void, :emerging, :visible, :keeping, :skipping
-     |> assign(:buckets, [])  # Saved discussions (max 6)
+     |> assign(:buckets, buckets)  # Saved discussions from DB (max 6)
      |> assign(:new_bucket_index, nil)  # Track newly added bucket for animation
      |> assign(:active_bucket, nil)  # Currently viewing bucket index
      |> assign(:view_mode, :discover)  # :discover or :viewing
      |> assign(:drift_seed, :rand.uniform(1000))  # For drift variation
      |> assign(:page_title, "Gridroom")
      |> assign(:show_help, false)}
+  end
+
+  # Load buckets from user's saved IDs, filtering out gone nodes
+  defp load_user_buckets(user) do
+    user.bucket_ids
+    |> Enum.map(&Grid.get_node_with_activity/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reject(fn node -> node.decay == :gone end)
   end
 
   # Emergence flow
@@ -141,6 +152,10 @@ defmodule GridroomWeb.TerminalLive do
       key in ["h", "H", "?"] ->
         {:noreply, assign(socket, :show_help, !socket.assigns.show_help)}
 
+      # C - clear all buckets
+      key in ["c", "C"] and length(socket.assigns.buckets) > 0 ->
+        clear_all_buckets(socket)
+
       # N - create new (if logged in)
       key in ["n", "N"] and socket.assigns.logged_in ->
         {:noreply, push_navigate(socket, to: ~p"/grid")}  # Use grid for creation for now
@@ -204,9 +219,17 @@ defmodule GridroomWeb.TerminalLive do
   @impl true
   def handle_event("remove_bucket", %{"index" => index_str}, socket) do
     index = String.to_integer(index_str)
-    buckets = List.delete_at(socket.assigns.buckets, index)
+    user = socket.assigns.user
 
-    socket = assign(socket, :buckets, buckets)
+    # Update DB
+    {:ok, updated_user} = Accounts.remove_from_buckets(user, index)
+
+    # Reload buckets from updated user
+    buckets = load_user_buckets(updated_user)
+
+    socket = socket
+      |> assign(:user, updated_user)
+      |> assign(:buckets, buckets)
 
     # If removed active bucket, return to discover
     socket = if socket.assigns.active_bucket == index do
@@ -215,45 +238,46 @@ defmodule GridroomWeb.TerminalLive do
       socket
     end
 
-    {:noreply, push_event(socket, "buckets_updated", %{buckets: buckets})}
-  end
-
-  # Restore buckets from localStorage
-  @impl true
-  def handle_event("restore_buckets", %{"bucket_ids" => bucket_ids}, socket) do
-    # Load nodes by ID, filtering out any that no longer exist
-    buckets =
-      bucket_ids
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map(&Grid.get_node_with_activity/1)
-      |> Enum.reject(&is_nil/1)
-
-    {:noreply, assign(socket, :buckets, buckets)}
+    {:noreply, socket}
   end
 
   # Private helpers
   defp bucket_current(socket) do
     current = socket.assigns.current
-    buckets = socket.assigns.buckets
+    user = socket.assigns.user
 
-    if length(buckets) < 6 do
-      new_index = length(buckets)
-      new_buckets = buckets ++ [current]
-      # Longer delay for keep animation - savoring the moment
-      Process.send_after(self(), :dismiss_complete, 800)
-      # Clear new bucket animation after it completes
-      Process.send_after(self(), :clear_new_bucket, 1000)
+    case Accounts.add_to_buckets(user, current.id) do
+      {:ok, updated_user} ->
+        new_index = length(socket.assigns.buckets)
+        new_buckets = socket.assigns.buckets ++ [current]
 
-      {:noreply,
-       socket
-       |> assign(:buckets, new_buckets)
-       |> assign(:new_bucket_index, new_index)
-       |> assign(:current_state, :keeping)
-       |> push_event("buckets_updated", %{buckets: new_buckets})}
-    else
-      # Buckets full - flash indicator?
-      {:noreply, socket}
+        # Longer delay for keep animation - savoring the moment
+        Process.send_after(self(), :dismiss_complete, 800)
+        # Clear new bucket animation after it completes
+        Process.send_after(self(), :clear_new_bucket, 1000)
+
+        {:noreply,
+         socket
+         |> assign(:user, updated_user)
+         |> assign(:buckets, new_buckets)
+         |> assign(:new_bucket_index, new_index)
+         |> assign(:current_state, :keeping)}
+
+      {:error, :buckets_full} ->
+        {:noreply, socket}
     end
+  end
+
+  defp clear_all_buckets(socket) do
+    user = socket.assigns.user
+    {:ok, updated_user} = Accounts.clear_buckets(user)
+
+    {:noreply,
+     socket
+     |> assign(:user, updated_user)
+     |> assign(:buckets, [])
+     |> assign(:active_bucket, nil)
+     |> assign(:view_mode, :discover)}
   end
 
   defp dismiss_current(socket) do
@@ -267,7 +291,6 @@ defmodule GridroomWeb.TerminalLive do
     <div
       id="terminal-container"
       class="fixed inset-0 bg-[#080706] overflow-hidden"
-      phx-hook="TerminalKeys"
       phx-window-keydown="keydown"
     >
       <!-- Subtle vignette -->
@@ -519,7 +542,11 @@ defmodule GridroomWeb.TerminalLive do
           </div>
           <div class="flex items-center gap-4">
             <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">1-6</span>
-            <span class="text-[#8a7d6d] text-sm">view saved discussion</span>
+            <span class="text-[#8a7d6d] text-sm">enter saved discussion</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">c</span>
+            <span class="text-[#8a7d6d] text-sm">clear all saved</span>
           </div>
           <div class="flex items-center gap-4">
             <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">esc</span>
