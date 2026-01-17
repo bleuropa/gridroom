@@ -7,9 +7,9 @@
 
 ## Current Focus
 
-No active task. Ready for next priority.
-
-**Planned**: [[T-2025-022-mdr-folder-system]] - MDR Folder System for Discussion Categories
+**Active Task**: [[T-2025-022-mdr-folder-system]] - MDR Folder System
+**Branch**: feat/T-2025-022-mdr-folder-system
+**Goal**: Implement MDR-inspired folders for categorizing discussions with completion tracking
 
 ---
 

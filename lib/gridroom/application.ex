@@ -16,6 +16,8 @@ defmodule Gridroom.Application do
       GridroomWeb.Presence,
       # Grok API trend scheduler
       Gridroom.Grok.Scheduler,
+      # Folder topic scheduler (daily fetch per folder)
+      Gridroom.Grok.FolderScheduler,
       # Start to serve requests, typically the last entry
       GridroomWeb.Endpoint
     ]

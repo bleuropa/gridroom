@@ -2,20 +2,21 @@ defmodule GridroomWeb.TerminalLive do
   @moduledoc """
   Lumon-inspired terminal interface for discovering discussions.
 
-  Discussions emerge one at a time from the void. You curate through
-  rejection - bucket what interests you, dismiss what doesn't.
+  Discussions are organized into MDR-style folders (Sports, Gossip, Tech, etc.)
+  displayed at the top. Users refine through topics one at a time within each folder.
+  Completing a folder triggers a Lumon wellness celebration.
   """
 
   use GridroomWeb, :live_view
 
-  alias Gridroom.{Grid, Accounts}
+  alias Gridroom.{Grid, Accounts, Folders}
   alias GridroomWeb.Presence
 
-  @emerge_delay_ms 1200   # Void before title appears - let emptiness breathe
-  @title_materialize_ms 2500  # Slow materialization of title
-  @post_title_pause 1500  # Silence after title settles
-  @description_surface_ms 2000  # Description surfaces slowly
-  @dismiss_delay_ms 600   # Things have weight when leaving
+  @emerge_delay_ms 1200
+  @title_materialize_ms 2500
+  @post_title_pause 1500
+  @description_surface_ms 2000
+  @dismiss_delay_ms 600
 
   @impl true
   def mount(_params, session, socket) do
@@ -34,43 +35,49 @@ defmodule GridroomWeb.TerminalLive do
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "grid:nodes")
       Phoenix.PubSub.subscribe(Gridroom.PubSub, "user:#{user.id}:resonance")
       Presence.track_user(self(), user)
-      # Start emergence after mount
       Process.send_after(self(), :emerge_next, @emerge_delay_ms)
     end
 
-    # Load user's saved buckets from DB, filtering out any that are "gone"
+    # Load folders with progress
+    folders_with_progress = Folders.list_folders_with_progress(user.id)
+
+    # Find first non-completed folder, or first folder
+    active_folder_index =
+      Enum.find_index(folders_with_progress, fn fp -> !fp.completed end) || 0
+
+    # Load user's saved buckets
     buckets = load_user_buckets(user)
     bucket_ids = Enum.map(buckets, & &1.id) |> MapSet.new()
 
-    # Load dismissed node IDs for this user
+    # Load dismissed node IDs
     dismissed_ids = Accounts.list_dismissed_node_ids(user) |> MapSet.new()
-
-    # Combine: exclude both dismissed AND already-bucketed nodes
     excluded_ids = MapSet.union(dismissed_ids, bucket_ids)
 
-    # Load and shuffle nodes for discovery order, excluding dismissed/bucketed ones
-    nodes =
-      Grid.list_nodes_with_activity()
-      |> Enum.reject(fn node -> MapSet.member?(excluded_ids, node.id) end)
-      |> Enum.shuffle()
+    # Load nodes for the active folder
+    {queue, active_folder} = load_folder_queue(folders_with_progress, active_folder_index, excluded_ids)
 
     {:ok,
      socket
      |> assign(:user, user)
      |> assign(:logged_in, user && user.username != nil)
-     |> assign(:queue, nodes)  # Remaining nodes to show
-     |> assign(:current, nil)  # Currently visible discussion
-     |> assign(:current_state, :void)  # :void, :emerging, :present, :keeping, :skipping
-     |> assign(:buckets, buckets)  # Saved discussions from DB (max 6)
-     |> assign(:new_bucket_index, nil)  # Track newly added bucket for animation
-     |> assign(:active_bucket, nil)  # Currently viewing bucket index
-     |> assign(:view_mode, :discover)  # :discover or :viewing
-     |> assign(:drift_seed, :rand.uniform(1000))  # For drift variation
+     |> assign(:folders, folders_with_progress)
+     |> assign(:active_folder_index, active_folder_index)
+     |> assign(:active_folder, active_folder)
+     |> assign(:queue, queue)
+     |> assign(:current, nil)
+     |> assign(:current_state, :void)
+     |> assign(:buckets, buckets)
+     |> assign(:new_bucket_index, nil)
+     |> assign(:active_bucket, nil)
+     |> assign(:view_mode, :discover)
+     |> assign(:drift_seed, :rand.uniform(1000))
      |> assign(:page_title, "Innie Chat")
-     |> assign(:show_help, false)}
+     |> assign(:show_help, false)
+     |> assign(:show_completion, false)
+     |> assign(:completion_message, nil)
+     |> assign(:excluded_ids, excluded_ids)}
   end
 
-  # Load buckets from user's saved IDs, filtering out gone nodes
   defp load_user_buckets(user) do
     user.bucket_ids
     |> Enum.map(&Grid.get_node_with_activity/1)
@@ -78,30 +85,82 @@ defmodule GridroomWeb.TerminalLive do
     |> Enum.reject(fn node -> node.decay == :gone end)
   end
 
-  # Emergence flow - slow, deliberate presence
+  defp load_folder_queue(folders_with_progress, active_index, excluded_ids) do
+    if Enum.empty?(folders_with_progress) do
+      # No folders - load all nodes (fallback)
+      nodes =
+        Grid.list_nodes_with_activity()
+        |> Enum.reject(fn node -> MapSet.member?(excluded_ids, node.id) end)
+        |> Enum.shuffle()
+
+      {nodes, nil}
+    else
+      folder_data = Enum.at(folders_with_progress, active_index)
+      folder = folder_data.folder
+
+      # Load today's nodes for this folder
+      today = Date.utc_today()
+      nodes =
+        Folders.list_folder_nodes(folder.id, today)
+        |> Enum.map(&add_node_activity/1)
+        |> Enum.reject(fn node -> MapSet.member?(excluded_ids, node.id) end)
+        |> Enum.shuffle()
+
+      {nodes, folder_data}
+    end
+  end
+
+  defp add_node_activity(node) do
+    # Add activity and decay info to node
+    case Grid.get_node_with_activity(node.id) do
+      nil -> node
+      node_with_activity -> node_with_activity
+    end
+  end
+
+  # Emergence flow
   @impl true
   def handle_info(:emerge_next, socket) do
     queue = socket.assigns.queue
 
-    if socket.assigns.view_mode == :discover and Enum.any?(queue) do
-      [next | rest] = queue
-      # Begin materialization - CSS handles the slow fade
-      # Schedule when it becomes interactive
-      total_time = @title_materialize_ms + @post_title_pause + @description_surface_ms
-      Process.send_after(self(), :become_present, total_time)
+    cond do
+      # Showing completion message - don't emerge
+      socket.assigns.show_completion ->
+        {:noreply, socket}
 
-      {:noreply,
-       socket
-       |> assign(:current, next)
-       |> assign(:current_state, :emerging)
-       |> assign(:queue, rest)
-       |> assign(:drift_seed, :rand.uniform(1000))}
-    else
-      {:noreply, socket}
+      # Have topics in queue
+      socket.assigns.view_mode == :discover and Enum.any?(queue) ->
+        [next | rest] = queue
+        total_time = @title_materialize_ms + @post_title_pause + @description_surface_ms
+        Process.send_after(self(), :become_present, total_time)
+
+        {:noreply,
+         socket
+         |> assign(:current, next)
+         |> assign(:current_state, :emerging)
+         |> assign(:queue, rest)
+         |> assign(:drift_seed, :rand.uniform(1000))}
+
+      # Queue empty - check if folder is complete (only if there were topics to refine)
+      socket.assigns.view_mode == :discover and Enum.empty?(queue) and socket.assigns.active_folder != nil ->
+        folder_data = socket.assigns.active_folder
+        # Only show completion if the folder had topics (total > 0) and user refined them
+        if folder_data.total > 0 and folder_data.refined > 0 do
+          folder = folder_data.folder
+          {:noreply,
+           socket
+           |> assign(:show_completion, true)
+           |> assign(:completion_message, folder.completion_message)}
+        else
+          # Empty folder - just stay in void state
+          {:noreply, socket}
+        end
+
+      true ->
+        {:noreply, socket}
     end
   end
 
-  # Fully materialized - now interactive
   @impl true
   def handle_info(:become_present, socket) do
     if socket.assigns.current_state == :emerging do
@@ -113,7 +172,6 @@ defmodule GridroomWeb.TerminalLive do
 
   @impl true
   def handle_info(:dismiss_complete, socket) do
-    # After dismiss animation, trigger next emergence
     Process.send_after(self(), :emerge_next, @dismiss_delay_ms)
     {:noreply, socket |> assign(:current, nil) |> assign(:current_state, :void)}
   end
@@ -123,12 +181,16 @@ defmodule GridroomWeb.TerminalLive do
     user = socket.assigns.user
     bucket_ids = Enum.map(socket.assigns.buckets, & &1.id)
 
-    # Only add if not dismissed and not already bucketed
-    if Accounts.node_dismissed?(user, node.id) or node.id in bucket_ids do
-      {:noreply, socket}
-    else
-      # Add new nodes to front of queue
+    # Only add if in current folder and not dismissed/bucketed
+    in_current_folder? =
+      socket.assigns.active_folder != nil and
+        node.folder_id == socket.assigns.active_folder.folder.id and
+        node.folder_date == Date.utc_today()
+
+    if in_current_folder? and not Accounts.node_dismissed?(user, node.id) and node.id not in bucket_ids do
       {:noreply, assign(socket, :queue, [node | socket.assigns.queue])}
+    else
+      {:noreply, socket}
     end
   end
 
@@ -140,14 +202,29 @@ defmodule GridroomWeb.TerminalLive do
     {:noreply, assign(socket, :new_bucket_index, nil)}
   end
 
-  # Keybinds - always responsive, no waiting
+  # Keybinds
   @impl true
   def handle_event("keydown", %{"key" => key}, socket) do
-    # Close help on any key press
-    if socket.assigns.show_help do
-      {:noreply, assign(socket, :show_help, false)}
-    else
-      handle_keydown(key, socket)
+    folders = socket.assigns.folders
+
+    cond do
+      # Arrow keys work even during completion to switch folders
+      socket.assigns.show_completion and key == "ArrowLeft" and length(folders) > 1 ->
+        switch_folder(socket, :prev)
+
+      socket.assigns.show_completion and key == "ArrowRight" and length(folders) > 1 ->
+        switch_folder(socket, :next)
+
+      # Other keys dismiss completion message
+      socket.assigns.show_completion ->
+        handle_completion_dismiss(socket)
+
+      # Close help on any key
+      socket.assigns.show_help ->
+        {:noreply, assign(socket, :show_help, false)}
+
+      true ->
+        handle_keydown(key, socket)
     end
   end
 
@@ -155,17 +232,18 @@ defmodule GridroomWeb.TerminalLive do
     has_current? = socket.assigns.current != nil
     in_discover? = socket.assigns.view_mode == :discover
     can_act? = socket.assigns.current_state in [:emerging, :present]
+    folders = socket.assigns.folders
 
     cond do
-      # Bucket current discussion (Space or Enter) - responsive immediately
+      # Bucket current discussion
       key in [" ", "Enter"] and has_current? and in_discover? and can_act? ->
         bucket_current(socket)
 
-      # Dismiss current discussion (X, Backspace) - responsive immediately
+      # Dismiss current discussion
       key in ["x", "X", "Backspace"] and has_current? and in_discover? and can_act? ->
         dismiss_current(socket)
 
-      # Escape - return to discover from viewing, or dismiss in discover
+      # Escape
       key == "Escape" ->
         if socket.assigns.view_mode == :viewing do
           {:noreply, socket |> assign(:view_mode, :discover) |> assign(:active_bucket, nil)}
@@ -177,7 +255,19 @@ defmodule GridroomWeb.TerminalLive do
           end
         end
 
-      # Number keys 1-6 - enter bucketed discussion directly
+      # Left arrow - previous folder
+      key == "ArrowLeft" and length(folders) > 1 ->
+        switch_folder(socket, :prev)
+
+      # Right arrow - next folder
+      key == "ArrowRight" and length(folders) > 1 ->
+        switch_folder(socket, :next)
+
+      # Tab - cycle folders
+      key == "Tab" and length(folders) > 1 ->
+        switch_folder(socket, :next)
+
+      # Number keys 1-6 - enter bucketed discussion
       key in ~w(1 2 3 4 5 6) ->
         index = String.to_integer(key) - 1
         buckets = socket.assigns.buckets
@@ -197,38 +287,127 @@ defmodule GridroomWeb.TerminalLive do
       key in ["c", "C"] and length(socket.assigns.buckets) > 0 ->
         clear_all_buckets(socket)
 
-      # N - create new (if logged in)
+      # N - create new
       key in ["n", "N"] and socket.assigns.logged_in ->
-        {:noreply, push_navigate(socket, to: ~p"/grid")}  # Use grid for creation for now
+        {:noreply, push_navigate(socket, to: ~p"/grid")}
 
       true ->
         {:noreply, socket}
     end
   end
 
-  # Click to bucket - responsive immediately
+  defp switch_folder(socket, direction) do
+    folders = socket.assigns.folders
+    current_index = socket.assigns.active_folder_index
+    max_index = length(folders) - 1
+
+    new_index =
+      case direction do
+        :next -> if current_index >= max_index, do: 0, else: current_index + 1
+        :prev -> if current_index <= 0, do: max_index, else: current_index - 1
+      end
+
+    excluded_ids = socket.assigns.excluded_ids
+    {queue, active_folder} = load_folder_queue(folders, new_index, excluded_ids)
+
+    # Cancel any pending emergence and restart
+    socket =
+      socket
+      |> assign(:active_folder_index, new_index)
+      |> assign(:active_folder, active_folder)
+      |> assign(:queue, queue)
+      |> assign(:current, nil)
+      |> assign(:current_state, :void)
+      |> assign(:show_completion, false)
+      |> assign(:completion_message, nil)
+
+    Process.send_after(self(), :emerge_next, @emerge_delay_ms)
+    {:noreply, socket}
+  end
+
+  defp handle_completion_dismiss(socket) do
+    # Move to next incomplete folder, or stay on current
+    folders = socket.assigns.folders
+    current_index = socket.assigns.active_folder_index
+
+    # Find next incomplete folder
+    next_incomplete =
+      Enum.with_index(folders)
+      |> Enum.find(fn {fp, i} -> i != current_index and !fp.completed end)
+
+    socket =
+      case next_incomplete do
+        {_, new_index} ->
+          excluded_ids = socket.assigns.excluded_ids
+          {queue, active_folder} = load_folder_queue(folders, new_index, excluded_ids)
+
+          socket
+          |> assign(:active_folder_index, new_index)
+          |> assign(:active_folder, active_folder)
+          |> assign(:queue, queue)
+          |> assign(:show_completion, false)
+          |> assign(:completion_message, nil)
+
+        nil ->
+          # All folders complete
+          socket
+          |> assign(:show_completion, false)
+          |> assign(:completion_message, nil)
+      end
+
+    Process.send_after(self(), :emerge_next, @emerge_delay_ms)
+    {:noreply, socket}
+  end
+
+  # Click handlers
   @impl true
   def handle_event("bucket_current", _params, socket) do
     can_act? = socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
-    if can_act? do
-      bucket_current(socket)
-    else
-      {:noreply, socket}
-    end
+    if can_act?, do: bucket_current(socket), else: {:noreply, socket}
   end
 
-  # Click to dismiss - responsive immediately
   @impl true
   def handle_event("dismiss_current", _params, socket) do
     can_act? = socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
-    if can_act? do
-      dismiss_current(socket)
-    else
+    if can_act?, do: dismiss_current(socket), else: {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("select_folder", %{"index" => index_str}, socket) do
+    index = String.to_integer(index_str)
+
+    if index != socket.assigns.active_folder_index do
+      folders = socket.assigns.folders
+      excluded_ids = socket.assigns.excluded_ids
+      {queue, active_folder} = load_folder_queue(folders, index, excluded_ids)
+
+      socket =
+        socket
+        |> assign(:active_folder_index, index)
+        |> assign(:active_folder, active_folder)
+        |> assign(:queue, queue)
+        |> assign(:current, nil)
+        |> assign(:current_state, :void)
+        |> assign(:show_completion, false)
+        |> assign(:completion_message, nil)
+
+      Process.send_after(self(), :emerge_next, @emerge_delay_ms)
       {:noreply, socket}
+    else
+      # If clicking on current folder and showing completion, dismiss it
+      if socket.assigns.show_completion do
+        {:noreply, socket |> assign(:show_completion, false) |> assign(:completion_message, nil)}
+      else
+        {:noreply, socket}
+      end
     end
   end
 
-  # Click bucket indicator to view
+  @impl true
+  def handle_event("dismiss_completion", _params, socket) do
+    handle_completion_dismiss(socket)
+  end
+
   @impl true
   def handle_event("view_bucket", %{"index" => index_str}, socket) do
     index = String.to_integer(index_str)
@@ -241,45 +420,39 @@ defmodule GridroomWeb.TerminalLive do
     end
   end
 
-  # Enter full discussion
   @impl true
   def handle_event("enter_discussion", %{"id" => node_id}, socket) do
     {:noreply, push_navigate(socket, to: "/node/#{node_id}")}
   end
 
-  # Return to discover mode
   @impl true
   def handle_event("return_to_discover", _params, socket) do
     socket = socket |> assign(:view_mode, :discover) |> assign(:active_bucket, nil)
-    # Resume emergence if nothing showing
     if socket.assigns.current == nil do
       Process.send_after(self(), :emerge_next, @dismiss_delay_ms)
     end
     {:noreply, socket}
   end
 
-  # Remove from buckets
   @impl true
   def handle_event("remove_bucket", %{"index" => index_str}, socket) do
     index = String.to_integer(index_str)
     user = socket.assigns.user
 
-    # Update DB
     {:ok, updated_user} = Accounts.remove_from_buckets(user, index)
-
-    # Reload buckets from updated user
     buckets = load_user_buckets(updated_user)
 
-    socket = socket
+    socket =
+      socket
       |> assign(:user, updated_user)
       |> assign(:buckets, buckets)
 
-    # If removed active bucket, return to discover
-    socket = if socket.assigns.active_bucket == index do
-      socket |> assign(:view_mode, :discover) |> assign(:active_bucket, nil)
-    else
-      socket
-    end
+    socket =
+      if socket.assigns.active_bucket == index do
+        socket |> assign(:view_mode, :discover) |> assign(:active_bucket, nil)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
@@ -294,9 +467,13 @@ defmodule GridroomWeb.TerminalLive do
         new_index = length(socket.assigns.buckets)
         new_buckets = socket.assigns.buckets ++ [current]
 
-        # Longer delay for keep animation - savoring the moment
+        # Update excluded IDs
+        new_excluded = MapSet.put(socket.assigns.excluded_ids, current.id)
+
+        # Track progress if in a folder
+        track_folder_progress(socket, current)
+
         Process.send_after(self(), :dismiss_complete, 800)
-        # Clear new bucket animation after it completes
         Process.send_after(self(), :clear_new_bucket, 1000)
 
         {:noreply,
@@ -304,13 +481,13 @@ defmodule GridroomWeb.TerminalLive do
          |> assign(:user, updated_user)
          |> assign(:buckets, new_buckets)
          |> assign(:new_bucket_index, new_index)
-         |> assign(:current_state, :keeping)}
+         |> assign(:current_state, :keeping)
+         |> assign(:excluded_ids, new_excluded)}
 
       {:error, :buckets_full} ->
         {:noreply, socket}
 
       {:error, :already_bucketed} ->
-        # Already in buckets - just dismiss and move on
         Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
         {:noreply, assign(socket, :current_state, :skipping)}
     end
@@ -332,13 +509,27 @@ defmodule GridroomWeb.TerminalLive do
     current = socket.assigns.current
     user = socket.assigns.user
 
-    # Persist dismissal to database
     if current do
       Accounts.dismiss_node(user, current.id)
-    end
 
-    Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
-    {:noreply, assign(socket, :current_state, :skipping)}
+      # Update excluded IDs
+      new_excluded = MapSet.put(socket.assigns.excluded_ids, current.id)
+
+      # Track progress if in a folder
+      track_folder_progress(socket, current)
+
+      Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
+      {:noreply, socket |> assign(:current_state, :skipping) |> assign(:excluded_ids, new_excluded)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  defp track_folder_progress(socket, node) do
+    if socket.assigns.active_folder != nil and node.folder_id != nil do
+      user = socket.assigns.user
+      Folders.increment_progress(user.id, node.folder_id)
+    end
   end
 
   @impl true
@@ -354,21 +545,36 @@ defmodule GridroomWeb.TerminalLive do
       <div class="pointer-events-none fixed inset-0 lumon-scanlines"></div>
       <div class="pointer-events-none fixed inset-0 lumon-glow"></div>
 
+      <!-- Folder navigation - top center -->
+      <%= if length(@folders) > 0 do %>
+        <.folder_nav
+          folders={@folders}
+          active_index={@active_folder_index}
+        />
+      <% end %>
+
       <!-- Emergence area - center of screen -->
       <div class="absolute inset-0 flex items-center justify-center">
-        <%= if @view_mode == :discover do %>
-          <.emergence_view
-            current={@current}
-            state={@current_state}
-            drift_seed={@drift_seed}
-            queue_empty={Enum.empty?(@queue)}
-            has_buckets={length(@buckets) > 0}
-          />
-        <% else %>
-          <.bucket_view
-            bucket={Enum.at(@buckets, @active_bucket)}
-            index={@active_bucket}
-          />
+        <%= cond do %>
+          <% @show_completion -> %>
+            <.completion_view
+              message={@completion_message}
+              folder={@active_folder && @active_folder.folder}
+            />
+          <% @view_mode == :discover -> %>
+            <.emergence_view
+              current={@current}
+              state={@current_state}
+              drift_seed={@drift_seed}
+              queue_empty={Enum.empty?(@queue)}
+              has_buckets={length(@buckets) > 0}
+              folder={@active_folder && @active_folder.folder}
+            />
+          <% true -> %>
+            <.bucket_view
+              bucket={Enum.at(@buckets, @active_bucket)}
+              index={@active_bucket}
+            />
         <% end %>
       </div>
 
@@ -395,7 +601,7 @@ defmodule GridroomWeb.TerminalLive do
           </button>
         <% end %>
 
-        <!-- Empty bucket slots (subtle) -->
+        <!-- Empty bucket slots -->
         <%= for i <- length(@buckets)..5 do %>
           <div class="w-8 h-8 rounded-full border border-[#1a1714] border-dashed flex items-center justify-center text-[#1a1714] text-xs font-mono">
             <%= i + 1 %>
@@ -403,7 +609,7 @@ defmodule GridroomWeb.TerminalLive do
         <% end %>
       </div>
 
-      <!-- Queue indicator - top right, very subtle -->
+      <!-- Queue indicator - top right -->
       <div class="absolute top-6 right-6 text-[#2a2522] text-xs font-mono">
         <%= length(@queue) %> remaining
       </div>
@@ -421,10 +627,10 @@ defmodule GridroomWeb.TerminalLive do
 
       <!-- Help overlay -->
       <%= if @show_help do %>
-        <.help_overlay />
+        <.help_overlay has_folders={length(@folders) > 0} />
       <% end %>
 
-      <!-- Auth - top left, Lumon style -->
+      <!-- Auth - top left -->
       <div class="absolute top-6 left-6 flex items-center gap-6">
         <span class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase">Innie Chat</span>
         <%= if @logged_in do %>
@@ -445,13 +651,92 @@ defmodule GridroomWeb.TerminalLive do
     """
   end
 
-  # The emerging discussion - Severance terminal aesthetic
+  # Folder navigation component
+  defp folder_nav(assigns) do
+    ~H"""
+    <div class="absolute top-16 left-1/2 -translate-x-1/2 flex items-center gap-1">
+      <%= for {folder_data, index} <- Enum.with_index(@folders) do %>
+        <button
+          phx-click="select_folder"
+          phx-value-index={index}
+          class={[
+            "px-4 py-2 font-mono text-xs uppercase tracking-wider transition-all duration-300 border-b-2",
+            folder_tab_classes(folder_data, index == @active_index)
+          ]}
+          title={folder_data.folder.description}
+        >
+          <span class="flex items-center gap-2">
+            <%= folder_data.folder.name %>
+            <%= if folder_data.completed do %>
+              <span class="text-[#8b9a7d]">&#10003;</span>
+            <% else %>
+              <span class="text-[#3a3530] text-[10px]">
+                <%= folder_data.refined %>/<%= folder_data.total %>
+              </span>
+            <% end %>
+          </span>
+        </button>
+      <% end %>
+    </div>
+    """
+  end
+
+  defp folder_tab_classes(folder_data, is_active) do
+    cond do
+      folder_data.completed and is_active ->
+        "text-[#8b9a7d] border-[#8b9a7d] bg-[#8b9a7d]/5"
+      folder_data.completed ->
+        "text-[#5a6d4d] border-transparent hover:border-[#5a6d4d]/50"
+      is_active ->
+        "text-[#e8e0d4] border-[#8a7d6d]"
+      true ->
+        "text-[#5a4f42] border-transparent hover:text-[#8a7d6d] hover:border-[#3a3530]"
+    end
+  end
+
+  # Completion celebration view
+  defp completion_view(assigns) do
+    ~H"""
+    <div class="relative w-full max-w-xl px-8 animate-fade-in text-center">
+      <!-- Folder completed badge -->
+      <div class="mb-8">
+        <div class="inline-flex items-center gap-3 px-6 py-3 border border-[#8b9a7d] bg-[#8b9a7d]/10 rounded-full">
+          <span class="text-[#8b9a7d] text-lg">&#10003;</span>
+          <span class="text-[#8b9a7d] text-sm font-mono uppercase tracking-wider">
+            <%= @folder && @folder.name %> Complete
+          </span>
+        </div>
+      </div>
+
+      <!-- Wellness message -->
+      <div class="space-y-6 max-w-md mx-auto">
+        <%= for paragraph <- String.split(@message || "", "\n\n", trim: true) do %>
+          <p class="text-[#c9c0b0] text-base font-light leading-relaxed">
+            <%= paragraph %>
+          </p>
+        <% end %>
+      </div>
+
+      <!-- Continue hint -->
+      <div class="mt-12">
+        <button
+          phx-click="dismiss_completion"
+          class="text-[#5a4f42] hover:text-[#8a7d6d] text-xs font-mono uppercase tracking-wider transition-colors"
+        >
+          press any key to continue
+        </button>
+      </div>
+    </div>
+    """
+  end
+
+  # The emerging discussion
   defp emergence_view(assigns) do
     ~H"""
     <div class="relative w-full max-w-2xl px-8">
       <%= if @current do %>
         <div class={emergence_container_classes(@state)}>
-          <!-- Title - terminal text, soft glow -->
+          <!-- Title -->
           <h2 class={[
             "text-xl md:text-3xl font-mono font-normal tracking-wide text-center leading-relaxed",
             title_classes(@state)
@@ -459,7 +744,7 @@ defmodule GridroomWeb.TerminalLive do
             <%= @current.title %>
           </h2>
 
-          <!-- Description - dimmer, secondary -->
+          <!-- Description -->
           <%= if @current.description && @current.description != "" do %>
             <p class={[
               "text-center text-sm font-mono font-light leading-relaxed mt-10 max-w-lg mx-auto",
@@ -469,7 +754,7 @@ defmodule GridroomWeb.TerminalLive do
             </p>
           <% end %>
 
-          <!-- Action hints - always visible when there's content -->
+          <!-- Action hints -->
           <div class={[
             "flex items-center justify-center gap-20 mt-16 transition-opacity duration-500",
             if(@state in [:emerging, :present], do: "opacity-30", else: "opacity-0")
@@ -489,14 +774,19 @@ defmodule GridroomWeb.TerminalLive do
           </div>
         </div>
       <% else %>
-        <!-- Void state - centered -->
+        <!-- Void state -->
         <div class="w-full flex items-center justify-center">
           <%= if @queue_empty do %>
-            <!-- All topics reviewed - Lumon completion message -->
             <div class="text-center space-y-8 animate-fade-in">
-              <p class="text-[#4a4540] text-xs font-mono tracking-[0.3em] uppercase">
-                all topics reviewed
-              </p>
+              <%= if @folder do %>
+                <p class="text-[#4a4540] text-xs font-mono tracking-[0.3em] uppercase">
+                  <%= @folder.name %> folder empty
+                </p>
+              <% else %>
+                <p class="text-[#4a4540] text-xs font-mono tracking-[0.3em] uppercase">
+                  all topics reviewed
+                </p>
+              <% end %>
               <div class="w-8 h-px bg-[#2a2522] mx-auto"></div>
               <%= if @has_buckets do %>
                 <p class="text-[#3a3530] text-[10px] font-mono tracking-widest">
@@ -504,12 +794,11 @@ defmodule GridroomWeb.TerminalLive do
                 </p>
               <% else %>
                 <p class="text-[#3a3530] text-[10px] font-mono tracking-widest">
-                  return when ready
+                  try another folder or return later
                 </p>
               <% end %>
             </div>
           <% else %>
-            <!-- Waiting for next emergence -->
             <div class="w-1.5 h-1.5 rounded-full bg-[#2a2522] void-indicator"></div>
           <% end %>
         </div>
@@ -524,24 +813,20 @@ defmodule GridroomWeb.TerminalLive do
     <div class="relative w-full max-w-xl px-8 animate-fade-in">
       <%= if @bucket do %>
         <div class="text-center">
-          <!-- Bucket number -->
           <div class="text-[#5a4f42] text-xs font-mono mb-6">
             bucket <%= @index + 1 %>
           </div>
 
-          <!-- Title -->
           <h2 class="text-2xl md:text-3xl font-light tracking-wide text-[#e8e0d5] mb-4">
             <%= @bucket.title %>
           </h2>
 
-          <!-- Description -->
           <%= if @bucket.description && @bucket.description != "" do %>
             <p class="text-[#8a7d6d] text-sm md:text-base font-light max-w-md mx-auto mb-8">
               "<%= @bucket.description %>"
             </p>
           <% end %>
 
-          <!-- Activity -->
           <div class="flex items-center justify-center gap-2 mb-8">
             <div class={["w-1.5 h-1.5 rounded-full", activity_dot(@bucket.activity.level)]}></div>
             <span class="text-[#3a3530] text-[10px] font-mono uppercase tracking-wider">
@@ -552,7 +837,6 @@ defmodule GridroomWeb.TerminalLive do
             </span>
           </div>
 
-          <!-- Actions -->
           <div class="flex items-center justify-center gap-6">
             <button
               phx-click="enter_discussion"
@@ -570,7 +854,6 @@ defmodule GridroomWeb.TerminalLive do
             </button>
           </div>
 
-          <!-- Return hint -->
           <p class="text-[#3a3530] text-[10px] font-mono mt-8">
             <span class="text-[#5a4f42]">esc</span> return to discovery
           </p>
@@ -596,6 +879,12 @@ defmodule GridroomWeb.TerminalLive do
             <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">x</span>
             <span class="text-[#8a7d6d] text-sm">skip to next</span>
           </div>
+          <%= if @has_folders do %>
+            <div class="flex items-center gap-4">
+              <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">&#8592; &#8594;</span>
+              <span class="text-[#8a7d6d] text-sm">switch folder</span>
+            </div>
+          <% end %>
           <div class="flex items-center gap-4">
             <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">1-6</span>
             <span class="text-[#8a7d6d] text-sm">enter saved discussion</span>
@@ -618,36 +907,25 @@ defmodule GridroomWeb.TerminalLive do
     """
   end
 
-  # Helper functions - Severance terminal styling
-
-  # Container classes - handles keep/skip animations
+  # Helper functions
   defp emergence_container_classes(:keeping), do: "severance-keeping"
   defp emergence_container_classes(:skipping), do: "severance-skipping"
   defp emergence_container_classes(_), do: ""
 
-  # Title - warm terminal phosphor glow
   defp title_classes(:emerging), do: "severance-title-emerging text-[#e0d8cc]"
   defp title_classes(:present), do: "severance-title-present text-[#e8e0d4]"
   defp title_classes(:keeping), do: "severance-title-present text-[#e8e0d4]"
   defp title_classes(:skipping), do: "text-[#e8e0d4]"
   defp title_classes(_), do: "opacity-0"
 
-  # Description - softer, secondary
   defp description_classes(:emerging), do: "severance-description-emerging text-[#9a9488]"
   defp description_classes(:present), do: "severance-description-present text-[#a8a298]"
   defp description_classes(:keeping), do: "text-[#a8a298]"
   defp description_classes(:skipping), do: "text-[#a8a298]"
   defp description_classes(_), do: "opacity-0"
 
-  # Activity dots for bucket view
   defp activity_dot(:buzzing), do: "bg-[#c9a962] animate-pulse"
   defp activity_dot(:active), do: "bg-[#8b9a7d]"
   defp activity_dot(:quiet), do: "bg-[#5a4f42]"
   defp activity_dot(:dormant), do: "bg-[#3a3530]"
-
-  # Activity indicator - subtle terminal presence
-  defp activity_dot_visible(:buzzing), do: "w-1.5 h-1.5 rounded-full bg-[#c9a962] shadow-[0_0_8px_rgba(201,169,98,0.5)] animate-pulse"
-  defp activity_dot_visible(:active), do: "w-1.5 h-1.5 rounded-full bg-[#8b9a7d] shadow-[0_0_6px_rgba(139,154,125,0.4)]"
-  defp activity_dot_visible(:quiet), do: "w-1 h-1 rounded-full bg-[#6a6258]"
-  defp activity_dot_visible(:dormant), do: "w-1 h-1 rounded-full bg-[#4a4540]"
 end

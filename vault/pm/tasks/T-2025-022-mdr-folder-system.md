@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-022
-status: backlog
+status: in-progress
 priority: p1
 created: 2026-01-17
 updated: 2026-01-17
@@ -11,11 +11,11 @@ updated: 2026-01-17
 
 ## Task Details
 **Task ID**: T-2025-022
-**Status**: Backlog
+**Status**: In Progress
 **Priority**: P1 (High)
 **Branch**: feat/T-2025-022-mdr-folder-system
 **Created**: 2026-01-17
-**Started**:
+**Started**: 2026-01-17
 **Completed**:
 
 ## Description
