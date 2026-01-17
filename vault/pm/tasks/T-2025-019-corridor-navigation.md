@@ -7,53 +7,55 @@ created: 2026-01-16
 updated: 2026-01-16
 ---
 
-# Task: Corridor Navigation System
+# Task: Lumon Terminal Stream Interface
 
 ## Task Details
 **Task ID**: T-2025-019
-**Status**: Backlog
+**Status**: In Progress
 **Priority**: P1 (High)
 **Branch**: feat/T-2025-019-corridor-navigation
 **Created**: 2026-01-16
 
 ## Description
 
-Replace the current 2D canvas grid view with a Severance-inspired corridor/tunnel navigation system. Users navigate through branching hallways where doors/alcoves lead to discussion rooms (nodes). The design should feel mysterious and immersive while reusing existing node/room functionality.
+Replace the current 2D canvas grid view with a Severance-inspired terminal interface. Discussions appear as scrolling text streams with varying font sizes based on activity. Users "bucket" discussions they want to follow and can quickly toggle between the stream view and active discussions.
 
 Key experience goals:
-- "Where does this hallway lead?" mystery
-- Doors reveal discussion rooms (existing nodes)
-- Murmurs/activity indicators as you approach active discussions
-- Dead ends and turns create discovery moments
-- Warm lighting to balance the sterile corridor aesthetic
+- Lumon terminal aesthetic (scrolling text, green-on-dark vibes)
+- Activity-driven discovery (font size = activity level)
+- Bucket system for queuing discussions (like browser tabs)
+- Seamless toggling between stream and discussion views
+- Always-on awareness of activity even when in a discussion
 
 ## Acceptance Criteria
-- [ ] Users can navigate through corridors using keyboard/click
-- [ ] Discussions appear as doors/alcoves along corridors
-- [ ] Active discussions have visual/audio cues (light, sound)
-- [ ] Existing node creation flow works (creates new room/door)
-- [ ] Corridor layout reflects existing nodes in meaningful way
-- [ ] Mobile-friendly navigation
-- [ ] Performance stays lightweight (no 3D engine required)
+- [ ] Scrolling text stream showing all discussions
+- [ ] Font size reflects discussion activity level
+- [ ] Bucket slots at bottom (6 max) to save discussions
+- [ ] Click discussion in stream to add to bucket
+- [ ] Keybinds 1-6 to jump to bucketed discussions
+- [ ] Spacebar toggles stream view ↔ current discussion
+- [ ] Stream remains visible/updating when in discussion
+- [ ] Existing node creation flow works
+- [ ] Mobile-friendly (tap to bucket, swipe to toggle)
 
 ## Technical Details
 ### Approach
-- Keep 2D implementation (SVG or Canvas)
-- Fake perspective with CSS transforms or parallax
-- Map existing nodes to corridor positions
-- Reuse existing node LiveView for room interiors
+- Replace grid_live.ex with terminal_live.ex
+- CSS for terminal aesthetic (monospace, subtle glow, scrolling)
+- LiveView for real-time stream updates
+- JS hooks for keybinds and smooth scrolling
 
 ### Key Design Decisions
-- First-person or top-down corridor view?
-- How do corridors branch? (topic-based wings?)
-- How does node creation translate to corridor? (new door appears?)
-- Transition animation: corridor → room
+- Stream scrolls automatically, pauses on hover
+- Buckets persist in session (localStorage backup)
+- Discussion overlay vs split view when active
+- Font size ranges: small (quiet) → large (active)
 
 ### Files to Modify
-- `lib/gridroom_web/live/grid_live.ex` → corridor_live.ex
-- `assets/js/app.js` - navigation controls
-- `assets/css/app.css` - corridor styling
-- New: corridor rendering components
+- `lib/gridroom_web/live/grid_live.ex` → terminal_live.ex
+- `assets/js/app.js` - keybinds, scroll behavior
+- `assets/css/app.css` - terminal styling
+- Modify node_live.ex for overlay/toggle integration
 
 ## Dependencies
 ### Reuses
@@ -66,6 +68,6 @@ Key experience goals:
 See [[T-2025-019-context]] for detailed design exploration.
 
 ## Notes
-- Inspired by Severance's endless white corridors
-- Should feel discoverable, not overwhelming
-- Preserve "found a nook" feeling from original vision
+- Inspired by Severance's Lumon terminals
+- Text-centric, activity-driven discovery
+- Buckets = personal queue of interesting discussions

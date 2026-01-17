@@ -1,96 +1,137 @@
-# Context: T-2025-019 Corridor Navigation
+# Context: T-2025-019 Lumon Terminal Stream
 
 **Task**: [[T-2025-019-corridor-navigation]]
 **Created**: 2026-01-16
-**Status**: Planning
+**Status**: In Progress
 
 ## Overview
 
-Replace the 2D canvas grid with a corridor/tunnel navigation metaphor inspired by Severance. Users walk through hallways, discovering discussion rooms behind doors. This creates a more immersive, mysterious experience while reusing all existing node functionality.
+Replace the 2D canvas grid with a Severance-inspired terminal interface. Instead of spatial navigation, users discover discussions through a scrolling text stream. Activity drives visibility (larger text = more active). Users "bucket" discussions they want to track and toggle seamlessly between stream and discussion views.
 
 ## Design Vision
 
 ### Core Experience
-- Navigate through branching corridors
-- Doors/alcoves lead to discussion rooms
-- "What's down this hallway?" sense of mystery
-- Warm lighting to balance sterile aesthetic
-- Sound cues (murmurs) for active discussions
+```
+┌─────────────────────────────────────────────────────────┐
+│                                                         │
+│    The AI hiring question                               │
+│         "where does automation end..."                  │
+│                                                         │
+│              Sleep as resistance                        │
+│                   "rest is radical"                     │
+│    Digital gardens                                      │
+│         "tend your corner..."                           │
+│                        The loneliness epidemic          │
+│              "connected but alone"                      │
+│                                                         │
+│  ─────────────────────────────────────────────────────  │
+│  [1] AI hiring  [2] Sleep  [3] Gardens  [ ] [ ] [ ]    │
+└─────────────────────────────────────────────────────────┘
+```
 
 ### Visual Reference
-- Severance's MDR department corridors
-- Clean, minimal, slightly unsettling
-- But with warm light spilling from active room doorways
-- Subtle environmental details (wall textures, floor patterns)
+- Lumon terminal screens (green/amber text on dark)
+- Scrolling stock ticker / airport departure boards
+- Old BBS systems, but elegant
+- Subtle CRT glow/scan lines optional
+
+### Interaction Model
+1. **Stream View**: Text scrolls continuously, showing all discussions
+2. **Bucket**: Click a discussion to add it to your bucket bar (bottom)
+3. **Enter**: Press 1-6 or click bucket to open that discussion
+4. **Toggle**: Spacebar switches between stream and active discussion
+5. **Awareness**: Stream keeps updating even when in a discussion
 
 ## Key Decisions
 
-### View Perspective
-Options:
-1. **First-person corridor view** - Looking down the hallway, doors on sides
-2. **Top-down maze view** - Bird's eye, see layout but lose immersion
-3. **Side-scroller** - Walk left/right through cross-section
+### Font Size = Activity
+- Base size: 14px (quiet)
+- Medium: 18px (some activity)
+- Large: 24px (active conversation)
+- Activity = messages in last N minutes + users present
 
-**Leaning toward**: First-person with simplified perspective (not full 3D)
+### Bucket System
+- 6 slots maximum
+- Click discussion in stream → adds to first empty slot
+- Click filled bucket → opens discussion
+- Right-click bucket → removes from bucket
+- Buckets saved to localStorage for persistence
 
-### Corridor Structure
-How do nodes map to corridors?
-- **Linear**: One long hallway, rooms in order of creation/activity
-- **Branching by topic**: Wings for different categories (from Grok topics)
-- **Organic growth**: New rooms extend corridors naturally
+### Stream Behavior
+- Auto-scrolls upward (new items at bottom? or top?)
+- Pauses on hover for easier clicking
+- Items fade in/out smoothly
+- Position varies (left/right offset for organic feel)
 
-### Navigation
-- Arrow keys / WASD to walk
-- Click on doors to enter
-- Mini-map for orientation?
+### Toggle Mechanics
+- Spacebar when in discussion → back to stream (discussion stays bucketed)
+- Spacebar when in stream with active bucket → open that discussion
+- ESC always returns to stream
 
 ## Implementation Plan
 
-### Phase 1: Basic Corridor Rendering
-- [ ] Create corridor LiveView (replaces grid_live)
-- [ ] Render simple corridor with perspective
-- [ ] Place doors for existing nodes
-- [ ] Basic walk controls
+### Phase 1: Basic Terminal Stream
+- [ ] Create terminal_live.ex (replace grid_live)
+- [ ] Render scrolling list of discussions
+- [ ] Terminal CSS styling (dark bg, monospace, glow)
+- [ ] Font size based on activity
 
-### Phase 2: Door/Room Integration
-- [ ] Door visuals (open/closed, light spill)
-- [ ] Click door → enter node (existing node_live)
-- [ ] Exit room → return to corridor position
-- [ ] Activity indicators on doors
+### Phase 2: Bucket System
+- [ ] Bucket bar UI at bottom
+- [ ] Click to bucket functionality
+- [ ] Keybinds 1-6 for bucket access
+- [ ] localStorage persistence
 
-### Phase 3: Polish & Discovery
-- [ ] Corridor branching logic
-- [ ] Sound cues for active rooms
-- [ ] Ambient lighting effects
-- [ ] Fog of war / unexplored areas
-- [ ] New room creation flow
+### Phase 3: Discussion Integration
+- [ ] Open discussion as overlay/split
+- [ ] Spacebar toggle
+- [ ] Stream continues in background
+- [ ] Activity updates in real-time
 
-## Open Questions
-
-1. How far can you see down a corridor? (performance vs mystery)
-2. Do corridors loop or have dead ends?
-3. How does presence work? (see other users in corridor?)
-4. Mobile: swipe to navigate?
+### Phase 4: Polish
+- [ ] Smooth animations
+- [ ] Mobile support (tap, swipe)
+- [ ] Node creation from terminal
+- [ ] Sound cues (optional)
 
 ## Technical Notes
 
-### Rendering Approach
-- SVG with CSS transforms for perspective
-- Or Canvas 2D with manual perspective math
-- Avoid Three.js/WebGL - keep it lightweight
+### LiveView Structure
+- `terminal_live.ex` - main terminal view
+- Subscribes to `grid:nodes` for real-time updates
+- Manages bucket state in socket assigns
+- Embeds or navigates to node_live for discussions
 
-### State Management
-- Current corridor position (x, y, facing direction)
-- Visible doors based on position
-- Corridor layout (generated from nodes)
+### Activity Calculation
+```elixir
+def calculate_activity(node) do
+  recent_messages = count_messages_since(node, minutes_ago: 5)
+  users_present = count_users_in_node(node)
 
-## References
-- Severance (Apple TV+) - MDR corridors
-- Superliminal - perspective tricks
-- Control - Oldest House architecture
+  cond do
+    recent_messages > 10 or users_present > 3 -> :high
+    recent_messages > 3 or users_present > 1 -> :medium
+    true -> :low
+  end
+end
+```
+
+### CSS Approach
+- CSS custom properties for terminal colors
+- `@keyframes scroll` for smooth movement
+- `text-shadow` for subtle glow effect
+- `backdrop-filter` for depth when overlaying
+
+## Open Questions
+
+1. Stream direction: new items appear at top or bottom?
+2. How many discussions visible at once in stream?
+3. Should discussions "pulse" when new message arrives?
+4. Node creation: modal over terminal or dedicated view?
 
 ## Next Steps
 
-1. Sketch basic corridor view in Figma or on paper
-2. Prototype minimal corridor rendering in LiveView
-3. Test navigation feel before building full system
+1. Build minimal terminal_live.ex with static content
+2. Add real node data with activity-based sizing
+3. Implement bucket system
+4. Integrate discussion toggle

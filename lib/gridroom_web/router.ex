@@ -17,7 +17,8 @@ defmodule GridroomWeb.Router do
   scope "/", GridroomWeb do
     pipe_through :browser
 
-    live "/", GridLive, :index
+    live "/", TerminalLive, :index
+    live "/grid", GridLive, :index  # Legacy grid view
     live "/node/:id", NodeLive, :show
 
     # Auth routes

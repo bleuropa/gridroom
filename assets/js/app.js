@@ -327,6 +327,44 @@ Hooks.TypingIndicator = {
   }
 }
 
+// Terminal Keys Hook - handles keyboard shortcuts for terminal interface
+Hooks.TerminalKeys = {
+  mounted() {
+    // The keydown event is handled via phx-window-keydown
+    // This hook provides any additional JS-side functionality
+
+    // Handle localStorage for bucket persistence
+    this.loadBuckets()
+
+    // Save buckets when they change
+    this.handleEvent("buckets_updated", ({buckets}) => {
+      this.saveBuckets(buckets)
+    })
+  },
+
+  loadBuckets() {
+    try {
+      const saved = localStorage.getItem('gridroom_buckets')
+      if (saved) {
+        const bucketIds = JSON.parse(saved)
+        // Push to server to restore buckets
+        this.pushEvent('restore_buckets', { bucket_ids: bucketIds })
+      }
+    } catch (e) {
+      console.warn('Could not load saved buckets:', e)
+    }
+  },
+
+  saveBuckets(buckets) {
+    try {
+      const bucketIds = buckets.map(b => b?.id || null)
+      localStorage.setItem('gridroom_buckets', JSON.stringify(bucketIds))
+    } catch (e) {
+      console.warn('Could not save buckets:', e)
+    }
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
