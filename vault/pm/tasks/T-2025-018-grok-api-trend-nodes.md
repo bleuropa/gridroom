@@ -1,7 +1,7 @@
 ---
 type: task
 id: T-2025-018
-status: in-progress
+status: completed
 priority: p1
 created: 2026-01-16
 updated: 2026-01-16

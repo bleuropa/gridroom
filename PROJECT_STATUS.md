@@ -15,16 +15,14 @@
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-013-share-nodes-via-url]] - Share nodes via URL (viral growth)
-2. [[T-2025-006-node-creation-system]] - User node creation
-3. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
+1. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
+2. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+3. [[T-2025-011-portal-system]] - Portal system with energy cost
 
 ## Backlog (Prioritized)
 
 ### High Priority (P1)
 - [[E-2025-002-social-friends-system]] - Epic: Social & Friends System
-- [[T-2025-013-share-nodes-via-url]] - Share nodes via URL
-- [[T-2025-006-node-creation-system]] - Node creation system
 
 ### Medium Priority (P2)
 - [[T-2025-007-grid-territories-classification]] - Grid territories & node classification
@@ -36,16 +34,15 @@
 - [[T-2025-008-ai-avatar-generation]] - AI avatar generation for auth users
 
 ### Future (from VISION.md)
-- AI content seeding with xAI/Grok
 - Deploy to production
 
 ---
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-018-grok-api-trend-nodes]] - Grok API integration for trend-based node generation
 - [[T-2025-017-resonance-presence-node-decay]] - Resonance meter, toasts, glyph effects, node decay
 - [[T-2025-016-grid-canvas-navigation]] - Grid canvas navigation (click to select, zoom limits)
-- [[T-2025-015-energy-reputation-system]] - Resonance system with affirm/dismiss feedback
 
 ---
 
