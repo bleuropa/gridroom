@@ -11,8 +11,11 @@ defmodule GridroomWeb.TerminalLive do
   alias Gridroom.{Grid, Accounts}
   alias GridroomWeb.Presence
 
-  @emerge_delay_ms 1500   # Slower emergence - more deliberate
-  @dismiss_delay_ms 600   # Heavier dismiss - things have weight
+  @emerge_delay_ms 1200   # Void before title appears - let emptiness breathe
+  @title_materialize_ms 2500  # Slow materialization of title
+  @post_title_pause 1500  # Silence after title settles
+  @description_surface_ms 2000  # Description surfaces slowly
+  @dismiss_delay_ms 600   # Things have weight when leaving
 
   @impl true
   def mount(_params, session, socket) do
@@ -47,7 +50,7 @@ defmodule GridroomWeb.TerminalLive do
      |> assign(:logged_in, user && user.username != nil)
      |> assign(:queue, nodes)  # Remaining nodes to show
      |> assign(:current, nil)  # Currently visible discussion
-     |> assign(:current_state, :void)  # :void, :emerging, :visible, :keeping, :skipping
+     |> assign(:current_state, :void)  # :void, :emerging, :present, :keeping, :skipping
      |> assign(:buckets, buckets)  # Saved discussions from DB (max 6)
      |> assign(:new_bucket_index, nil)  # Track newly added bucket for animation
      |> assign(:active_bucket, nil)  # Currently viewing bucket index
@@ -65,15 +68,17 @@ defmodule GridroomWeb.TerminalLive do
     |> Enum.reject(fn node -> node.decay == :gone end)
   end
 
-  # Emergence flow
+  # Emergence flow - slow, deliberate presence
   @impl true
   def handle_info(:emerge_next, socket) do
     queue = socket.assigns.queue
 
     if socket.assigns.view_mode == :discover and Enum.any?(queue) do
       [next | rest] = queue
-      # Start emerging
-      Process.send_after(self(), :emerge_complete, @emerge_delay_ms)
+      # Begin materialization - CSS handles the slow fade
+      # Schedule when it becomes interactive
+      total_time = @title_materialize_ms + @post_title_pause + @description_surface_ms
+      Process.send_after(self(), :become_present, total_time)
 
       {:noreply,
        socket
@@ -86,9 +91,14 @@ defmodule GridroomWeb.TerminalLive do
     end
   end
 
+  # Fully materialized - now interactive
   @impl true
-  def handle_info(:emerge_complete, socket) do
-    {:noreply, assign(socket, :current_state, :visible)}
+  def handle_info(:become_present, socket) do
+    if socket.assigns.current_state == :emerging do
+      {:noreply, assign(socket, :current_state, :present)}
+    else
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -112,16 +122,20 @@ defmodule GridroomWeb.TerminalLive do
     {:noreply, assign(socket, :new_bucket_index, nil)}
   end
 
-  # Keybinds
+  # Keybinds - always responsive, no waiting
   @impl true
   def handle_event("keydown", %{"key" => key}, socket) do
+    has_current? = socket.assigns.current != nil
+    in_discover? = socket.assigns.view_mode == :discover
+    can_act? = socket.assigns.current_state in [:emerging, :present]
+
     cond do
-      # Bucket current discussion (Space or Enter)
-      key in [" ", "Enter"] and socket.assigns.current != nil and socket.assigns.view_mode == :discover ->
+      # Bucket current discussion (Space or Enter) - responsive immediately
+      key in [" ", "Enter"] and has_current? and in_discover? and can_act? ->
         bucket_current(socket)
 
-      # Dismiss current discussion (X, Backspace, or Escape in discover mode)
-      key in ["x", "X", "Backspace"] and socket.assigns.current != nil and socket.assigns.view_mode == :discover ->
+      # Dismiss current discussion (X, Backspace) - responsive immediately
+      key in ["x", "X", "Backspace"] and has_current? and in_discover? and can_act? ->
         dismiss_current(socket)
 
       # Escape - return to discover from viewing, or dismiss in discover
@@ -129,7 +143,7 @@ defmodule GridroomWeb.TerminalLive do
         if socket.assigns.view_mode == :viewing do
           {:noreply, socket |> assign(:view_mode, :discover) |> assign(:active_bucket, nil)}
         else
-          if socket.assigns.current != nil do
+          if has_current? and can_act? do
             dismiss_current(socket)
           else
             {:noreply, socket}
@@ -165,20 +179,22 @@ defmodule GridroomWeb.TerminalLive do
     end
   end
 
-  # Click to bucket
+  # Click to bucket - responsive immediately
   @impl true
   def handle_event("bucket_current", _params, socket) do
-    if socket.assigns.current != nil do
+    can_act? = socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
+    if can_act? do
       bucket_current(socket)
     else
       {:noreply, socket}
     end
   end
 
-  # Click to dismiss
+  # Click to dismiss - responsive immediately
   @impl true
   def handle_event("dismiss_current", _params, socket) do
-    if socket.assigns.current != nil do
+    can_act? = socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
+    if can_act? do
       dismiss_current(socket)
     else
       {:noreply, socket}
@@ -290,11 +306,13 @@ defmodule GridroomWeb.TerminalLive do
     ~H"""
     <div
       id="terminal-container"
-      class="fixed inset-0 bg-[#080706] overflow-hidden"
+      class="fixed inset-0 lumon-terminal overflow-hidden"
       phx-window-keydown="keydown"
     >
-      <!-- Subtle vignette -->
-      <div class="pointer-events-none fixed inset-0 bg-radial-dark"></div>
+      <!-- CRT atmosphere layers -->
+      <div class="pointer-events-none fixed inset-0 lumon-vignette"></div>
+      <div class="pointer-events-none fixed inset-0 lumon-scanlines"></div>
+      <div class="pointer-events-none fixed inset-0 lumon-glow"></div>
 
       <!-- Emergence area - center of screen -->
       <div class="absolute inset-0 flex items-center justify-center">
@@ -381,63 +399,55 @@ defmodule GridroomWeb.TerminalLive do
     """
   end
 
-  # The emerging discussion - just text floating in void
+  # The emerging discussion - Severance terminal aesthetic
   defp emergence_view(assigns) do
     ~H"""
     <div class="relative w-full max-w-2xl px-8">
       <%= if @current do %>
-        <div class={emergence_classes(@state)} style={drift_style(@drift_seed)}>
-          <!-- Title - Lumon style: clean, spaced, present -->
+        <div class={emergence_container_classes(@state)}>
+          <!-- Title - terminal text, soft glow -->
           <h2 class={[
-            "text-xl md:text-3xl font-extralight tracking-[0.15em] text-center leading-relaxed transition-all duration-1000 uppercase",
-            if(@state == :visible, do: "lumon-text-glow text-[#c8c0b4]", else: "text-[#3a3530]")
+            "text-xl md:text-3xl font-mono font-normal tracking-wide text-center leading-relaxed",
+            title_classes(@state)
           ]}>
             <%= @current.title %>
           </h2>
 
-          <!-- Description whisper -->
+          <!-- Description - dimmer, secondary -->
           <%= if @current.description && @current.description != "" do %>
             <p class={[
-              "text-center text-xs md:text-sm font-light leading-loose mt-8 max-w-sm mx-auto transition-all duration-1000 delay-200 tracking-wide",
-              if(@state == :visible, do: "text-[#5a5347]", else: "text-[#2a2522]")
+              "text-center text-sm font-mono font-light leading-relaxed mt-10 max-w-lg mx-auto",
+              description_classes(@state)
             ]}>
               <%= @current.description %>
             </p>
           <% end %>
 
-          <!-- Minimal activity pulse -->
-          <div class="flex items-center justify-center mt-12">
-            <div class={[
-              "w-1 h-1 rounded-full transition-all duration-1000",
-              if(@state == :visible, do: activity_dot_visible(@current.activity.level), else: "bg-[#1a1714]")
-            ]}></div>
-          </div>
-
-          <!-- Action hints - ghostly -->
+          <!-- Action hints - always visible when there's content -->
           <div class={[
-            "flex items-center justify-center gap-20 mt-20 transition-all duration-1000",
-            if(@state == :visible, do: "opacity-50", else: "opacity-0 pointer-events-none")
+            "flex items-center justify-center gap-20 mt-16 transition-opacity duration-500",
+            if(@state in [:emerging, :present], do: "opacity-30", else: "opacity-0")
           ]}>
             <button
               phx-click="bucket_current"
-              class="text-[#3a3530] hover:text-[#5a5347] text-[8px] font-mono tracking-[0.2em] uppercase transition-colors duration-500"
+              class="text-[#4a4540] hover:text-[#7a7570] text-[10px] font-mono tracking-widest uppercase transition-colors duration-200"
             >
               space
             </button>
             <button
               phx-click="dismiss_current"
-              class="text-[#3a3530] hover:text-[#4a4038] text-[8px] font-mono tracking-[0.2em] uppercase transition-colors duration-500"
+              class="text-[#4a4540] hover:text-[#7a7570] text-[10px] font-mono tracking-widest uppercase transition-colors duration-200"
             >
               x
             </button>
           </div>
         </div>
       <% else %>
-        <!-- Void state -->
-        <div class="text-center">
+        <!-- Void state - centered -->
+        <div class="w-full flex items-center justify-center">
           <%= if @queue_empty do %>
             <!-- All topics reviewed - Lumon completion message -->
-            <div class="space-y-8 animate-fade-in">
+            <div class="text-center space-y-8 animate-fade-in">
               <p class="text-[#4a4540] text-xs font-mono tracking-[0.3em] uppercase">
                 all topics reviewed
               </p>
@@ -454,7 +464,7 @@ defmodule GridroomWeb.TerminalLive do
             </div>
           <% else %>
             <!-- Waiting for next emergence -->
-            <div class="w-1.5 h-1.5 rounded-full bg-[#2a2522] mx-auto void-indicator"></div>
+            <div class="w-1.5 h-1.5 rounded-full bg-[#2a2522] void-indicator"></div>
           <% end %>
         </div>
       <% end %>
@@ -527,8 +537,8 @@ defmodule GridroomWeb.TerminalLive do
   # Help overlay
   defp help_overlay(assigns) do
     ~H"""
-    <div class="absolute inset-0 bg-[#080706]/90 flex items-center justify-center z-50 animate-fade-in">
-      <div class="text-center max-w-sm">
+    <div class="fixed inset-0 bg-[#080706]/95 flex items-center justify-center z-50 animate-fade-in">
+      <div class="text-center max-w-sm mx-auto px-8">
         <h3 class="text-[#8a7d6d] text-sm font-mono uppercase tracking-wider mb-8">Controls</h3>
 
         <div class="space-y-4 text-left">
@@ -562,18 +572,26 @@ defmodule GridroomWeb.TerminalLive do
     """
   end
 
-  # Helper functions - using Lumon CSS animation classes
-  defp emergence_classes(:void), do: "opacity-0"
-  defp emergence_classes(:emerging), do: "terminal-emerging"
-  defp emergence_classes(:visible), do: "terminal-visible"
-  defp emergence_classes(:keeping), do: "terminal-keeping"
-  defp emergence_classes(:skipping), do: "terminal-skipping"
+  # Helper functions - Severance terminal styling
 
-  defp drift_style(seed) do
-    # Subtle floating animation offset based on seed
-    x_offset = rem(seed, 20) - 10
-    "transform: translateX(#{x_offset}px);"
-  end
+  # Container classes - handles keep/skip animations
+  defp emergence_container_classes(:keeping), do: "severance-keeping"
+  defp emergence_container_classes(:skipping), do: "severance-skipping"
+  defp emergence_container_classes(_), do: ""
+
+  # Title - warm terminal phosphor glow
+  defp title_classes(:emerging), do: "severance-title-emerging text-[#e0d8cc]"
+  defp title_classes(:present), do: "severance-title-present text-[#e8e0d4]"
+  defp title_classes(:keeping), do: "severance-title-present text-[#e8e0d4]"
+  defp title_classes(:skipping), do: "text-[#e8e0d4]"
+  defp title_classes(_), do: "opacity-0"
+
+  # Description - softer, secondary
+  defp description_classes(:emerging), do: "severance-description-emerging text-[#9a9488]"
+  defp description_classes(:present), do: "severance-description-present text-[#a8a298]"
+  defp description_classes(:keeping), do: "text-[#a8a298]"
+  defp description_classes(:skipping), do: "text-[#a8a298]"
+  defp description_classes(_), do: "opacity-0"
 
   # Activity dots for bucket view
   defp activity_dot(:buzzing), do: "bg-[#c9a962] animate-pulse"
@@ -581,9 +599,9 @@ defmodule GridroomWeb.TerminalLive do
   defp activity_dot(:quiet), do: "bg-[#5a4f42]"
   defp activity_dot(:dormant), do: "bg-[#3a3530]"
 
-  # Subtle activity indicator for emergence view - just a hint
-  defp activity_dot_visible(:buzzing), do: "bg-[#c9a962]/60 shadow-[0_0_8px_rgba(201,169,98,0.4)]"
-  defp activity_dot_visible(:active), do: "bg-[#8b9a7d]/50 shadow-[0_0_6px_rgba(139,154,125,0.3)]"
-  defp activity_dot_visible(:quiet), do: "bg-[#5a4f42]/40"
-  defp activity_dot_visible(:dormant), do: "bg-[#3a3530]/30"
+  # Activity indicator - subtle terminal presence
+  defp activity_dot_visible(:buzzing), do: "w-1.5 h-1.5 rounded-full bg-[#c9a962] shadow-[0_0_8px_rgba(201,169,98,0.5)] animate-pulse"
+  defp activity_dot_visible(:active), do: "w-1.5 h-1.5 rounded-full bg-[#8b9a7d] shadow-[0_0_6px_rgba(139,154,125,0.4)]"
+  defp activity_dot_visible(:quiet), do: "w-1 h-1 rounded-full bg-[#6a6258]"
+  defp activity_dot_visible(:dormant), do: "w-1 h-1 rounded-full bg-[#4a4540]"
 end

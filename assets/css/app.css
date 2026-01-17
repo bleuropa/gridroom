@@ -1061,97 +1061,149 @@ input:focus, textarea:focus, button:focus {
 }
 
 /* ============================================
-   Lumon Terminal - Heavy, Deliberate Animations
+   Lumon Terminal - Severance MDR Aesthetic
    ============================================ */
 
-/* Custom easing - heavy and deliberate */
+/*
+ * The MDR floor: clinical, slightly unsettling.
+ * Old CRT warmth meets corporate coldness.
+ * Text glows softly like phosphor burning.
+ */
+
 :root {
   --ease-lumon: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-lumon-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-lumon-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Emergence animation - slow fade with slight rise */
-@keyframes lumon-emerge {
+/* Base terminal - deep blue-black with slight warmth */
+.lumon-terminal {
+  background: linear-gradient(
+    180deg,
+    #0a0908 0%,
+    #0d0b09 50%,
+    #080706 100%
+  );
+}
+
+/* Vignette - darker edges, focus center */
+.lumon-vignette {
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 50%,
+    transparent 0%,
+    transparent 40%,
+    rgba(0, 0, 0, 0.3) 70%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+}
+
+/* Scanlines - subtle CRT texture */
+.lumon-scanlines {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  opacity: 0.4;
+}
+
+/* Soft center glow - like screen phosphor */
+.lumon-glow {
+  background: radial-gradient(
+    ellipse 50% 40% at 50% 45%,
+    rgba(180, 175, 160, 0.03) 0%,
+    transparent 70%
+  );
+}
+
+/* ============================================
+   Text Emergence - Slow, Deliberate
+   ============================================ */
+
+/* Title materialization */
+.severance-title-emerging {
+  animation: severance-materialize 2s ease-out forwards;
+}
+
+.severance-title-present {
+  opacity: 1;
+  text-shadow:
+    0 0 20px rgba(200, 192, 180, 0.15),
+    0 0 40px rgba(200, 192, 180, 0.05);
+}
+
+@keyframes severance-materialize {
   0% {
     opacity: 0;
-    transform: translateY(20px) scale(0.97);
-    filter: blur(8px);
-  }
-  40% {
-    opacity: 0.3;
-    filter: blur(4px);
+    text-shadow: 0 0 0 transparent;
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    text-shadow:
+      0 0 20px rgba(200, 192, 180, 0.15),
+      0 0 40px rgba(200, 192, 180, 0.05);
   }
 }
 
-/* Keep animation - warm embrace, shrink toward bucket */
-@keyframes lumon-keep {
+/* Description surfaces after, dimmer */
+.severance-description-emerging {
+  animation: severance-surface 1.8s ease-out 0.8s forwards;
+  opacity: 0;
+}
+
+.severance-description-present {
+  opacity: 1;
+  text-shadow: 0 0 15px rgba(160, 152, 140, 0.1);
+}
+
+@keyframes severance-surface {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 15px rgba(160, 152, 140, 0.1);
+  }
+}
+
+/* Keep - warmth, acceptance, sinks to bucket */
+.severance-keeping {
+  animation: severance-keep 0.6s ease-in forwards;
+}
+
+@keyframes severance-keep {
   0% {
     opacity: 1;
     transform: translateY(0) scale(1);
-    filter: blur(0) brightness(1);
+    filter: brightness(1);
   }
   30% {
-    opacity: 1;
-    transform: translateY(0) scale(1.02);
-    filter: blur(0) brightness(1.3);
-    text-shadow: 0 0 30px rgba(139, 154, 125, 0.6);
+    filter: brightness(1.2);
+    text-shadow: 0 0 30px rgba(139, 154, 125, 0.4);
   }
   100% {
     opacity: 0;
-    transform: translateY(100px) scale(0.8);
-    filter: blur(4px) brightness(1.5);
+    transform: translateY(50px) scale(0.95);
+    filter: brightness(1.3);
   }
 }
 
-/* Skip animation - dissolve upward, rejected */
-@keyframes lumon-skip {
+/* Skip - dissolve back to void */
+.severance-skipping {
+  animation: severance-skip 0.4s ease-in forwards;
+}
+
+@keyframes severance-skip {
   0% {
     opacity: 1;
-    transform: translateY(0) translateX(0) scale(1);
-    filter: blur(0);
-  }
-  40% {
-    opacity: 0.4;
-    transform: translateY(-20px) translateX(10px) scale(0.98);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(-60px) translateX(30px) scale(0.9);
-    filter: blur(8px);
+    transform: translateY(-20px);
   }
-}
-
-/* Idle float - very subtle breathing */
-@keyframes lumon-float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
-
-/* Terminal emergence states */
-.terminal-emerging {
-  animation: lumon-emerge 1.5s var(--ease-lumon-out) forwards;
-}
-
-.terminal-visible {
-  animation: lumon-float 8s ease-in-out infinite;
-}
-
-.terminal-keeping {
-  animation: lumon-keep 0.8s var(--ease-lumon) forwards;
-}
-
-.terminal-skipping {
-  animation: lumon-skip 0.5s var(--ease-lumon-in) forwards;
 }
 
 /* Bucket indicator animations - arrival with glow */
@@ -1242,13 +1294,3 @@ input:focus, textarea:focus, button:focus {
   transition-duration: 0.1s;
 }
 
-/* ============================================
-   Lumon Terminal - Eerie Text Presence
-   ============================================ */
-
-/* Text that feels present in the void - not a card, just presence */
-.lumon-text-glow {
-  text-shadow:
-    0 0 30px rgba(212, 204, 192, 0.12),
-    0 0 60px rgba(212, 204, 192, 0.06);
-}

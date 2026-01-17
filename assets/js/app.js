@@ -327,6 +327,82 @@ Hooks.TypingIndicator = {
   }
 }
 
+// Character Reveal Hook - characters materialize one by one, no cursor
+Hooks.Typewriter = {
+  mounted() {
+    this.text = this.el.dataset.text || ""
+    this.charDelay = parseInt(this.el.dataset.charDelay) || 60
+    this.startDelay = parseInt(this.el.dataset.startDelay) || 0
+    this.onComplete = this.el.dataset.onComplete
+    this.currentIndex = 0
+    this.isRevealing = false
+
+    // Clear the element
+    this.el.textContent = ''
+
+    // Start revealing after delay
+    setTimeout(() => this.startRevealing(), this.startDelay)
+  },
+
+  startRevealing() {
+    if (this.isRevealing || this.currentIndex >= this.text.length) {
+      this.finishRevealing()
+      return
+    }
+
+    this.isRevealing = true
+    this.revealNextChar()
+  },
+
+  revealNextChar() {
+    if (this.currentIndex >= this.text.length) {
+      this.finishRevealing()
+      return
+    }
+
+    const char = this.text[this.currentIndex]
+
+    // Create a span for each character so we can animate it
+    const charSpan = document.createElement('span')
+    charSpan.textContent = char
+    charSpan.className = 'char-materializing'
+    this.el.appendChild(charSpan)
+
+    // Trigger the materialize animation
+    requestAnimationFrame(() => {
+      charSpan.classList.add('char-visible')
+    })
+
+    this.currentIndex++
+
+    // Organic timing - slower, dreamier
+    let delay = this.charDelay
+    if ('.,:;!?'.includes(char)) {
+      delay = this.charDelay * 6 // Long pause on punctuation - contemplative
+    } else if (char === ' ') {
+      delay = this.charDelay * 2.5 // Pause between words
+    }
+
+    // More variation for organic, breathing feel
+    delay += (Math.random() - 0.5) * this.charDelay * 0.6
+
+    setTimeout(() => this.revealNextChar(), delay)
+  },
+
+  finishRevealing() {
+    this.isRevealing = false
+
+    // Notify LiveView that reveal is complete
+    if (this.onComplete) {
+      this.pushEvent(this.onComplete, {})
+    }
+  },
+
+  destroyed() {
+    // Cleanup if needed
+  }
+}
+
 // Terminal Keys Hook - handles keyboard shortcuts for terminal interface
 Hooks.TerminalKeys = {
   mounted() {
