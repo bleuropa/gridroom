@@ -403,6 +403,64 @@ Hooks.Typewriter = {
   }
 }
 
+// Node Keys Hook - handles keyboard shortcuts for discussion rooms
+Hooks.NodeKeys = {
+  mounted() {
+    this.spaceHeld = false
+
+    this.handleKeyDown = (e) => {
+      const input = document.getElementById('message-input')
+      const isInputFocused = document.activeElement === input
+
+      // Enter focuses the input (if not already focused)
+      if (e.key === 'Enter' && !isInputFocused) {
+        e.preventDefault()
+        input?.focus()
+        return
+      }
+
+      // Escape blurs the input
+      if (e.key === 'Escape' && isInputFocused) {
+        e.preventDefault()
+        input?.blur()
+        return
+      }
+
+      // Space held shows highlights (only when input not focused)
+      if (e.key === ' ' && !isInputFocused && !this.spaceHeld) {
+        e.preventDefault()
+        this.spaceHeld = true
+        this.pushEvent('show_highlights', {})
+        return
+      }
+
+      // Number keys 1-6 navigate to buckets (only when input not focused)
+      if (!isInputFocused && ['1', '2', '3', '4', '5', '6'].includes(e.key)) {
+        e.preventDefault()
+        const index = parseInt(e.key) - 1
+        this.pushEvent('navigate_to_bucket', { index })
+        return
+      }
+    }
+
+    this.handleKeyUp = (e) => {
+      // Space released hides highlights
+      if (e.key === ' ' && this.spaceHeld) {
+        this.spaceHeld = false
+        this.pushEvent('hide_highlights', {})
+      }
+    }
+
+    window.addEventListener('keydown', this.handleKeyDown)
+    window.addEventListener('keyup', this.handleKeyUp)
+  },
+
+  destroyed() {
+    window.removeEventListener('keydown', this.handleKeyDown)
+    window.removeEventListener('keyup', this.handleKeyUp)
+  }
+}
+
 // Terminal Keys Hook - handles keyboard shortcuts for terminal interface
 Hooks.TerminalKeys = {
   mounted() {
