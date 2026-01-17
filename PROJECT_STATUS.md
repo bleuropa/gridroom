@@ -7,17 +7,17 @@
 
 ## Current Focus
 
-**Active Task**: [[T-2025-020-discussion-page-severance-redesign]]
-**Branch**: feat/T-2025-020-discussion-severance-redesign
-**Goal**: Redesign discussion pages to match Severance terminal aesthetic, add bucket indicators
+**Active Task**: [[T-2025-021-persistent-dismissed-discussions]]
+**Branch**: feat/T-2025-021-persistent-dismissed-discussions
+**Goal**: Persist dismissed discussions in DB, enforce single-bucket per discussion
 
 ---
 
 ## Next Up (Top 3 Priorities)
 
-1. [[T-2025-021-persistent-dismissed-discussions]] - Persistent dismissed discussions (X stays dismissed)
-2. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
-3. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+1. [[T-2025-007-grid-territories-classification]] - Grid territories & classification
+2. [[T-2025-009-idle-kick-mechanic]] - Idle kick mechanic
+3. [[T-2025-011-portal-system]] - Portal system with energy cost
 
 ## Backlog (Prioritized)
 

@@ -3,7 +3,7 @@ type: task
 id: T-2025-021
 story:
 epic:
-status: backlog
+status: in-progress
 priority: p2
 created: 2026-01-16
 updated: 2026-01-16
@@ -13,11 +13,11 @@ updated: 2026-01-16
 
 ## Task Details
 **Task ID**: T-2025-021
-**Status**: Backlog
+**Status**: In Progress
 **Priority**: P2 (Medium)
 **Branch**: feat/T-2025-021-persistent-dismissed-discussions
 **Created**: 2026-01-16
-**Started**:
+**Started**: 2026-01-16
 **Completed**:
 
 ## Description
@@ -30,6 +30,7 @@ When users dismiss a discussion by clicking X, that dismissal should persist per
 - [ ] Dismissals persist across bucket clearing
 - [ ] Dismissals work for both anonymous (session) and authenticated users
 - [ ] Anonymous user dismissals migrate to account on login (optional)
+- [ ] Prevent bucketing same discussion in multiple buckets (enforce single-bucket per discussion)
 
 ## Checklist
 - [ ] Design dismissal storage schema

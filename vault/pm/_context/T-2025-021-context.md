@@ -2,7 +2,7 @@
 
 **Task**: [[T-2025-021-persistent-dismissed-discussions]]
 **Created**: 2026-01-16
-**Status**: Planning
+**Status**: In Progress
 
 ## Overview
 
