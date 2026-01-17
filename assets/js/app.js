@@ -270,13 +270,85 @@ Hooks.RoomEntrance = {
   }
 }
 
-// Scroll to bottom hook for messages
+// Scroll to bottom hook for messages (legacy, kept for compatibility)
 Hooks.ScrollToBottom = {
   mounted() {
     this.el.scrollTop = this.el.scrollHeight
   },
   updated() {
     this.el.scrollTop = this.el.scrollHeight
+  }
+}
+
+// Message Stream hook - handles scroll-to-bottom for new messages
+// while preserving scroll position when loading older messages
+Hooks.MessageStream = {
+  mounted() {
+    this.scrollToBottom()
+    this.wasAtBottom = true
+    this.prevScrollHeight = this.el.scrollHeight
+
+    // Track if user is at bottom before updates
+    this.el.addEventListener('scroll', () => {
+      const threshold = 50 // pixels from bottom
+      this.wasAtBottom = (this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight) < threshold
+    })
+  },
+
+  updated() {
+    const newScrollHeight = this.el.scrollHeight
+    const heightDiff = newScrollHeight - this.prevScrollHeight
+
+    if (heightDiff > 0) {
+      // Content was added
+      if (this.wasAtBottom) {
+        // User was at bottom, scroll to show new content
+        this.scrollToBottom()
+      } else if (this.el.scrollTop < 100) {
+        // User is near top (loading older messages) - maintain position
+        this.el.scrollTop = this.el.scrollTop + heightDiff
+      }
+    }
+
+    this.prevScrollHeight = newScrollHeight
+  },
+
+  scrollToBottom() {
+    this.el.scrollTop = this.el.scrollHeight
+  }
+}
+
+// Infinite scroll trigger for loading older messages
+Hooks.InfiniteScroll = {
+  mounted() {
+    this.pending = false
+    this.observer = new IntersectionObserver((entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && !this.pending && this.el.dataset.pageLoading !== "true") {
+        this.pending = true
+        this.pushEvent("load_more_messages", {}, () => {
+          this.pending = false
+        })
+      }
+    }, {
+      root: this.el.closest('#messages-container'),
+      threshold: 0.1
+    })
+
+    this.observer.observe(this.el)
+  },
+
+  updated() {
+    // Reset pending state when loading completes
+    if (this.el.dataset.pageLoading === "false") {
+      this.pending = false
+    }
+  },
+
+  destroyed() {
+    if (this.observer) {
+      this.observer.disconnect()
+    }
   }
 }
 

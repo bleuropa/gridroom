@@ -190,6 +190,45 @@ defmodule Gridroom.Grid do
   end
 
   @doc """
+  Lists messages for a node with cursor-based pagination.
+  Used for lazy-loading older messages when user scrolls up.
+
+  ## Options
+  - `:limit` - Number of messages to fetch (default: 50)
+  - `:before_id` - Fetch messages older than this message ID (cursor)
+
+  Returns messages in chronological order (oldest first).
+  """
+  def list_messages_paginated(node_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+    before_id = Keyword.get(opts, :before_id)
+
+    query =
+      Message
+      |> where([m], m.node_id == ^node_id)
+      |> order_by([m], desc: m.inserted_at)
+      |> limit(^limit)
+      |> preload(:user)
+
+    query =
+      if before_id do
+        # Get the cursor message's timestamp for efficient pagination
+        case Repo.get(Message, before_id) do
+          nil -> query
+          cursor_msg ->
+            where(query, [m], m.inserted_at < ^cursor_msg.inserted_at or
+              (m.inserted_at == ^cursor_msg.inserted_at and m.id < ^cursor_msg.id))
+        end
+      else
+        query
+      end
+
+    query
+    |> Repo.all()
+    |> Enum.reverse()
+  end
+
+  @doc """
   Lists top affirmed messages for a node.
   Returns messages with at least min_affirmations affirmations, sorted by count.
   """

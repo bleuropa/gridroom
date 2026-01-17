@@ -40,9 +40,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-024-streaming-messages-pagination]] - Streaming messages with LiveView streams for lazy loading
 - [[T-2025-023-gemini-google-search-grounding]] - Gemini Google Search grounding + decay/scheduler cleanup
 - [[T-2025-022-mdr-folder-system]] - MDR folder system for discussion categories (Sports, Gossip, Tech, etc.)
-- [[T-2025-021-persistent-dismissed-discussions]] - Persistent dismissed discussions + Innie Chat rebrand
 
 ---
 
