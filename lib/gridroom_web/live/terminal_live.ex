@@ -45,16 +45,19 @@ defmodule GridroomWeb.TerminalLive do
     active_folder_index =
       Enum.find_index(folders_with_progress, fn fp -> !fp.completed end) || 0
 
-    # Load user's saved buckets
+    # Load user's saved buckets (slots 1-6) and created nodes (slots 7-8)
     buckets = load_user_buckets(user)
+    created_nodes = load_user_created_nodes(user)
     bucket_ids = Enum.map(buckets, & &1.id) |> MapSet.new()
+    created_node_ids = Enum.map(created_nodes, & &1.id) |> MapSet.new()
 
     # Load dismissed node IDs
     dismissed_ids = Accounts.list_dismissed_node_ids(user) |> MapSet.new()
-    excluded_ids = MapSet.union(dismissed_ids, bucket_ids)
+    excluded_ids = dismissed_ids |> MapSet.union(bucket_ids) |> MapSet.union(created_node_ids)
 
     # Load nodes for the active folder
-    {queue, active_folder} = load_folder_queue(folders_with_progress, active_folder_index, excluded_ids)
+    {queue, active_folder} =
+      load_folder_queue(folders_with_progress, active_folder_index, excluded_ids, user)
 
     {:ok,
      socket
@@ -67,7 +70,9 @@ defmodule GridroomWeb.TerminalLive do
      |> assign(:current, nil)
      |> assign(:current_state, :void)
      |> assign(:buckets, buckets)
+     |> assign(:created_nodes, created_nodes)
      |> assign(:new_bucket_index, nil)
+     |> assign(:new_created_index, nil)
      |> assign(:active_bucket, nil)
      |> assign(:view_mode, :discover)
      |> assign(:drift_seed, :rand.uniform(1000))
@@ -75,7 +80,9 @@ defmodule GridroomWeb.TerminalLive do
      |> assign(:show_help, false)
      |> assign(:show_completion, false)
      |> assign(:completion_message, nil)
-     |> assign(:excluded_ids, excluded_ids)}
+     |> assign(:excluded_ids, excluded_ids)
+     |> assign(:show_create_modal, false)
+     |> assign(:create_form, to_form(%{"title" => "", "description" => ""}))}
   end
 
   defp load_user_buckets(user) do
@@ -85,7 +92,14 @@ defmodule GridroomWeb.TerminalLive do
     |> Enum.reject(fn node -> node.decay == :gone end)
   end
 
-  defp load_folder_queue(folders_with_progress, active_index, excluded_ids) do
+  defp load_user_created_nodes(user) do
+    user.created_node_ids
+    |> Enum.map(&Grid.get_node_with_activity/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reject(fn node -> node.decay == :gone end)
+  end
+
+  defp load_folder_queue(folders_with_progress, active_index, excluded_ids, user) do
     if Enum.empty?(folders_with_progress) do
       # No folders - load all nodes (fallback)
       nodes =
@@ -100,8 +114,17 @@ defmodule GridroomWeb.TerminalLive do
 
       # Load today's nodes for this folder
       today = Date.utc_today()
+
+      # For community folders, exclude the user's own discussions
+      opts =
+        if folder.is_community && user do
+          [exclude_creator_id: user.id]
+        else
+          []
+        end
+
       nodes =
-        Folders.list_folder_nodes(folder.id, today)
+        Folders.list_folder_nodes(folder.id, today, opts)
         |> Enum.map(&add_node_activity/1)
         |> Enum.reject(fn node -> MapSet.member?(excluded_ids, node.id) end)
         |> Enum.shuffle()
@@ -142,11 +165,13 @@ defmodule GridroomWeb.TerminalLive do
          |> assign(:drift_seed, :rand.uniform(1000))}
 
       # Queue empty - check if folder is complete (only if there were topics to refine)
-      socket.assigns.view_mode == :discover and Enum.empty?(queue) and socket.assigns.active_folder != nil ->
+      socket.assigns.view_mode == :discover and Enum.empty?(queue) and
+          socket.assigns.active_folder != nil ->
         folder_data = socket.assigns.active_folder
         # Only show completion if the folder had topics (total > 0) and user refined them
         if folder_data.total > 0 and folder_data.refined > 0 do
           folder = folder_data.folder
+
           {:noreply,
            socket
            |> assign(:show_completion, true)
@@ -187,7 +212,8 @@ defmodule GridroomWeb.TerminalLive do
         node.folder_id == socket.assigns.active_folder.folder.id and
         node.folder_date == Date.utc_today()
 
-    if in_current_folder? and not Accounts.node_dismissed?(user, node.id) and node.id not in bucket_ids do
+    if in_current_folder? and not Accounts.node_dismissed?(user, node.id) and
+         node.id not in bucket_ids do
       {:noreply, assign(socket, :queue, [node | socket.assigns.queue])}
     else
       {:noreply, socket}
@@ -200,6 +226,11 @@ defmodule GridroomWeb.TerminalLive do
   @impl true
   def handle_info(:clear_new_bucket, socket) do
     {:noreply, assign(socket, :new_bucket_index, nil)}
+  end
+
+  @impl true
+  def handle_info(:clear_new_created, socket) do
+    {:noreply, assign(socket, :new_created_index, nil)}
   end
 
   # Keybinds
@@ -222,6 +253,10 @@ defmodule GridroomWeb.TerminalLive do
       # Close help on any key
       socket.assigns.show_help ->
         {:noreply, assign(socket, :show_help, false)}
+
+      # Close create modal on Escape
+      socket.assigns.show_create_modal and key == "Escape" ->
+        {:noreply, assign(socket, :show_create_modal, false)}
 
       true ->
         handle_keydown(key, socket)
@@ -279,6 +314,18 @@ defmodule GridroomWeb.TerminalLive do
           {:noreply, socket}
         end
 
+      # Number keys 7-8 - enter created discussion
+      key in ~w(7 8) ->
+        index = String.to_integer(key) - 7
+        created_nodes = socket.assigns.created_nodes
+
+        if index < length(created_nodes) do
+          node = Enum.at(created_nodes, index)
+          {:noreply, push_navigate(socket, to: "/node/#{node.id}")}
+        else
+          {:noreply, socket}
+        end
+
       # H - toggle help
       key in ["h", "H", "?"] ->
         {:noreply, assign(socket, :show_help, !socket.assigns.show_help)}
@@ -287,9 +334,9 @@ defmodule GridroomWeb.TerminalLive do
       key in ["c", "C"] and length(socket.assigns.buckets) > 0 ->
         clear_all_buckets(socket)
 
-      # N - create new
+      # N - create new discussion
       key in ["n", "N"] and socket.assigns.logged_in ->
-        {:noreply, push_navigate(socket, to: ~p"/grid")}
+        {:noreply, assign(socket, :show_create_modal, true)}
 
       true ->
         {:noreply, socket}
@@ -308,7 +355,8 @@ defmodule GridroomWeb.TerminalLive do
       end
 
     excluded_ids = socket.assigns.excluded_ids
-    {queue, active_folder} = load_folder_queue(folders, new_index, excluded_ids)
+    user = socket.assigns.user
+    {queue, active_folder} = load_folder_queue(folders, new_index, excluded_ids, user)
 
     # Cancel any pending emergence and restart
     socket =
@@ -339,7 +387,8 @@ defmodule GridroomWeb.TerminalLive do
       case next_incomplete do
         {_, new_index} ->
           excluded_ids = socket.assigns.excluded_ids
-          {queue, active_folder} = load_folder_queue(folders, new_index, excluded_ids)
+          user = socket.assigns.user
+          {queue, active_folder} = load_folder_queue(folders, new_index, excluded_ids, user)
 
           socket
           |> assign(:active_folder_index, new_index)
@@ -362,13 +411,17 @@ defmodule GridroomWeb.TerminalLive do
   # Click handlers
   @impl true
   def handle_event("bucket_current", _params, socket) do
-    can_act? = socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
+    can_act? =
+      socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
+
     if can_act?, do: bucket_current(socket), else: {:noreply, socket}
   end
 
   @impl true
   def handle_event("dismiss_current", _params, socket) do
-    can_act? = socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
+    can_act? =
+      socket.assigns.current != nil and socket.assigns.current_state in [:emerging, :present]
+
     if can_act?, do: dismiss_current(socket), else: {:noreply, socket}
   end
 
@@ -379,7 +432,8 @@ defmodule GridroomWeb.TerminalLive do
     if index != socket.assigns.active_folder_index do
       folders = socket.assigns.folders
       excluded_ids = socket.assigns.excluded_ids
-      {queue, active_folder} = load_folder_queue(folders, index, excluded_ids)
+      user = socket.assigns.user
+      {queue, active_folder} = load_folder_queue(folders, index, excluded_ids, user)
 
       socket =
         socket
@@ -421,6 +475,19 @@ defmodule GridroomWeb.TerminalLive do
   end
 
   @impl true
+  def handle_event("view_created", %{"index" => index_str}, socket) do
+    index = String.to_integer(index_str)
+    created_nodes = socket.assigns.created_nodes
+
+    if index < length(created_nodes) do
+      node = Enum.at(created_nodes, index)
+      {:noreply, push_navigate(socket, to: "/node/#{node.id}")}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_event("enter_discussion", %{"id" => node_id}, socket) do
     {:noreply, push_navigate(socket, to: "/node/#{node_id}")}
   end
@@ -428,9 +495,11 @@ defmodule GridroomWeb.TerminalLive do
   @impl true
   def handle_event("return_to_discover", _params, socket) do
     socket = socket |> assign(:view_mode, :discover) |> assign(:active_bucket, nil)
+
     if socket.assigns.current == nil do
       Process.send_after(self(), :emerge_next, @dismiss_delay_ms)
     end
+
     {:noreply, socket}
   end
 
@@ -455,6 +524,76 @@ defmodule GridroomWeb.TerminalLive do
       end
 
     {:noreply, socket}
+  end
+
+  # Create discussion modal events
+  @impl true
+  def handle_event("open_create_modal", _params, socket) do
+    if socket.assigns.logged_in do
+      {:noreply, assign(socket, :show_create_modal, true)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("close_create_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_create_modal, false)
+     |> assign(:create_form, to_form(%{"title" => "", "description" => ""}))}
+  end
+
+  @impl true
+  def handle_event("create_discussion", %{"title" => title, "description" => description}, socket) do
+    user = socket.assigns.user
+
+    # Create the node
+    attrs = %{
+      title: String.trim(title),
+      description: String.trim(description),
+      created_by_id: user.id,
+      position_x: 0.0,
+      position_y: 0.0,
+      node_type: "discussion"
+    }
+
+    case Grid.create_node(attrs) do
+      {:ok, node} ->
+        # Auto-add to created nodes (slots 7-8) if there's space
+        case Accounts.add_to_created_nodes(user, node.id) do
+          {:ok, updated_user} ->
+            node_with_activity = Grid.get_node_with_activity(node.id)
+            new_created_nodes = socket.assigns.created_nodes ++ [node_with_activity]
+
+            {:noreply,
+             socket
+             |> assign(:user, updated_user)
+             |> assign(:created_nodes, new_created_nodes)
+             |> assign(:show_create_modal, false)
+             |> assign(:create_form, to_form(%{"title" => "", "description" => ""}))
+             |> assign(:new_created_index, length(new_created_nodes) - 1)
+             |> push_navigate(to: "/node/#{node.id}")}
+
+          {:error, :created_nodes_full} ->
+            # Created nodes full (max 2), navigate to the node anyway
+            {:noreply,
+             socket
+             |> assign(:show_create_modal, false)
+             |> assign(:create_form, to_form(%{"title" => "", "description" => ""}))
+             |> push_navigate(to: "/node/#{node.id}")}
+
+          _ ->
+            {:noreply,
+             socket
+             |> assign(:show_create_modal, false)
+             |> assign(:create_form, to_form(%{"title" => "", "description" => ""}))
+             |> push_navigate(to: "/node/#{node.id}")}
+        end
+
+      {:error, _changeset} ->
+        {:noreply, socket}
+    end
   end
 
   # Private helpers
@@ -519,7 +658,9 @@ defmodule GridroomWeb.TerminalLive do
       track_folder_progress(socket, current)
 
       Process.send_after(self(), :dismiss_complete, @dismiss_delay_ms)
-      {:noreply, socket |> assign(:current_state, :skipping) |> assign(:excluded_ids, new_excluded)}
+
+      {:noreply,
+       socket |> assign(:current_state, :skipping) |> assign(:excluded_ids, new_excluded)}
     else
       {:noreply, socket}
     end
@@ -544,16 +685,16 @@ defmodule GridroomWeb.TerminalLive do
       <div class="pointer-events-none fixed inset-0 lumon-vignette"></div>
       <div class="pointer-events-none fixed inset-0 lumon-scanlines"></div>
       <div class="pointer-events-none fixed inset-0 lumon-glow"></div>
-
-      <!-- Folder navigation - top center -->
+      
+    <!-- Folder navigation - top center -->
       <%= if length(@folders) > 0 do %>
         <.folder_nav
           folders={@folders}
           active_index={@active_folder_index}
         />
       <% end %>
-
-      <!-- Emergence area - center of screen -->
+      
+    <!-- Emergence area - center of screen -->
       <div class="absolute inset-0 flex items-center justify-center">
         <%= cond do %>
           <% @show_completion -> %>
@@ -577,9 +718,10 @@ defmodule GridroomWeb.TerminalLive do
             />
         <% end %>
       </div>
-
-      <!-- Bucket indicators - bottom center -->
+      
+    <!-- Bucket indicators - bottom center -->
       <div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3">
+        <!-- Slots 1-6: AI-generated buckets (sage green) -->
         <%= for {bucket, index} <- Enum.with_index(@buckets) do %>
           <button
             phx-click="view_bucket"
@@ -592,57 +734,123 @@ defmodule GridroomWeb.TerminalLive do
               ),
               if(@active_bucket == index,
                 do: "border-[#8b9a7d] bg-[#8b9a7d]/20 text-[#8b9a7d]",
-                else: "border-[#8b9a7d]/60 text-[#8b9a7d]/80 hover:border-[#8b9a7d] hover:text-[#8b9a7d]"
+                else:
+                  "border-[#8b9a7d]/60 text-[#8b9a7d]/80 hover:border-[#8b9a7d] hover:text-[#8b9a7d]"
               )
             ]}
             title={bucket.title}
           >
-            <%= index + 1 %>
+            {index + 1}
           </button>
         <% end %>
 
-        <!-- Empty bucket slots -->
-        <%= for i <- length(@buckets)..5 do %>
-          <div class="w-8 h-8 rounded-full border border-[#1a1714] border-dashed flex items-center justify-center text-[#1a1714] text-xs font-mono">
-            <%= i + 1 %>
-          </div>
+        <!-- Empty bucket slots (1-6) -->
+        <%= if length(@buckets) < 6 do %>
+          <%= for i <- length(@buckets)..5 do %>
+            <div class="w-8 h-8 rounded-full border border-[#1a1714] border-dashed flex items-center justify-center text-[#1a1714] text-xs font-mono">
+              {i + 1}
+            </div>
+          <% end %>
+        <% end %>
+
+        <!-- Separator between AI-generated and user-created -->
+        <%= if @logged_in do %>
+          <div class="w-px h-6 bg-[#2a2522] mx-1"></div>
+        <% end %>
+
+        <!-- Slots 7-8: User-created discussions (amber/gold) -->
+        <%= if @logged_in do %>
+          <%= for {created, index} <- Enum.with_index(@created_nodes) do %>
+            <button
+              phx-click="view_created"
+              phx-value-index={index}
+              class={[
+                "w-8 h-8 rounded-full border flex items-center justify-center text-xs font-mono",
+                if(@new_created_index == index,
+                  do: "bucket-new-glow",
+                  else: "transition-all duration-300"
+                ),
+                "border-[#c9a962]/60 text-[#c9a962]/80 hover:border-[#c9a962] hover:text-[#c9a962]"
+              ]}
+              title={created.title}
+            >
+              {index + 7}
+            </button>
+          <% end %>
+
+          <!-- Empty created node slots (7-8) -->
+          <%= if length(@created_nodes) < 2 do %>
+            <%= for i <- (length(@created_nodes) + 1)..2 do %>
+              <div class="w-8 h-8 rounded-full border border-[#2a2520]/40 border-dashed flex items-center justify-center text-[#2a2520]/60 text-xs font-mono">
+                {i + 6}
+              </div>
+            <% end %>
+          <% end %>
+
+          <!-- Create button (only shown if user has < 2 created discussions) -->
+          <%= if length(@created_nodes) < 2 do %>
+            <button
+              phx-click="open_create_modal"
+              class="w-8 h-8 rounded-full border border-[#c9a962]/40 border-dashed flex items-center justify-center text-[#c9a962]/60 text-sm font-mono hover:border-[#c9a962] hover:text-[#c9a962] transition-colors"
+              title="Create new discussion (n)"
+            >
+              +
+            </button>
+          <% end %>
         <% end %>
       </div>
-
-      <!-- Queue indicator - top right -->
+      
+    <!-- Queue indicator - top right -->
       <div class="absolute top-6 right-6 text-[#2a2522] text-xs font-mono">
-        <%= length(@queue) %> remaining
+        {length(@queue)} remaining
       </div>
-
-      <!-- Help hint - bottom right -->
+      
+    <!-- Help hint - bottom right -->
       <div class="absolute bottom-8 right-6">
         <button
           phx-click="keydown"
           phx-value-key="?"
           class="text-[#2a2522] hover:text-[#5a4f42] text-xs font-mono transition-colors"
         >
-          <%= if @show_help, do: "hide", else: "?" %>
+          {if @show_help, do: "hide", else: "?"}
         </button>
       </div>
-
-      <!-- Help overlay -->
+      
+    <!-- Help overlay -->
       <%= if @show_help do %>
-        <.help_overlay has_folders={length(@folders) > 0} />
+        <.help_overlay has_folders={length(@folders) > 0} logged_in={@logged_in} />
       <% end %>
-
-      <!-- Auth - top left -->
+      
+    <!-- Create discussion modal -->
+      <%= if @show_create_modal do %>
+        <.create_discussion_modal form={@create_form} />
+      <% end %>
+      
+    <!-- Auth - top left -->
       <div class="absolute top-6 left-6 flex items-center gap-6">
-        <span class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase">Innie Chat</span>
+        <span class="text-[#4a4540] text-[10px] font-mono tracking-[0.3em] uppercase">
+          Innie Chat
+        </span>
         <%= if @logged_in do %>
-          <span class="text-[#5a4f42] text-xs font-mono tracking-wider"><%= @user.username %></span>
-          <.link href={~p"/logout"} method="delete" class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+          <span class="text-[#5a4f42] text-xs font-mono tracking-wider">{@user.username}</span>
+          <.link
+            href={~p"/logout"}
+            method="delete"
+            class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase"
+          >
             clock out
           </.link>
         <% else %>
-          <.link navigate={~p"/login"} class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+          <.link
+            navigate={~p"/login"}
+            class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase"
+          >
             clock in
           </.link>
-          <.link navigate={~p"/register"} class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase">
+          <.link
+            navigate={~p"/register"}
+            class="text-[#3a3530] hover:text-[#5a4f42] text-[10px] font-mono tracking-wider uppercase"
+          >
             request access
           </.link>
         <% end %>
@@ -666,12 +874,12 @@ defmodule GridroomWeb.TerminalLive do
           title={folder_data.folder.description}
         >
           <span class="flex items-center gap-2">
-            <%= folder_data.folder.name %>
+            {folder_data.folder.name}
             <%= if folder_data.completed do %>
               <span class="text-[#8b9a7d]">&#10003;</span>
             <% else %>
               <span class="text-[#3a3530] text-[10px]">
-                <%= folder_data.refined %>/<%= folder_data.total %>
+                {folder_data.refined}/{folder_data.total}
               </span>
             <% end %>
           </span>
@@ -685,10 +893,13 @@ defmodule GridroomWeb.TerminalLive do
     cond do
       folder_data.completed and is_active ->
         "text-[#8b9a7d] border-[#8b9a7d] bg-[#8b9a7d]/5"
+
       folder_data.completed ->
         "text-[#5a6d4d] border-transparent hover:border-[#5a6d4d]/50"
+
       is_active ->
         "text-[#e8e0d4] border-[#8a7d6d]"
+
       true ->
         "text-[#5a4f42] border-transparent hover:text-[#8a7d6d] hover:border-[#3a3530]"
     end
@@ -703,21 +914,21 @@ defmodule GridroomWeb.TerminalLive do
         <div class="inline-flex items-center gap-3 px-6 py-3 border border-[#8b9a7d] bg-[#8b9a7d]/10 rounded-full">
           <span class="text-[#8b9a7d] text-lg">&#10003;</span>
           <span class="text-[#8b9a7d] text-sm font-mono uppercase tracking-wider">
-            <%= @folder && @folder.name %> Complete
+            {@folder && @folder.name} Complete
           </span>
         </div>
       </div>
-
-      <!-- Wellness message -->
+      
+    <!-- Wellness message -->
       <div class="space-y-6 max-w-md mx-auto">
         <%= for paragraph <- String.split(@message || "", "\n\n", trim: true) do %>
           <p class="text-[#c9c0b0] text-base font-light leading-relaxed">
-            <%= paragraph %>
+            {paragraph}
           </p>
         <% end %>
       </div>
-
-      <!-- Continue hint -->
+      
+    <!-- Continue hint -->
       <div class="mt-12">
         <button
           phx-click="dismiss_completion"
@@ -741,20 +952,20 @@ defmodule GridroomWeb.TerminalLive do
             "text-xl md:text-3xl font-mono font-normal tracking-wide text-center leading-relaxed",
             title_classes(@state)
           ]}>
-            <%= @current.title %>
+            {@current.title}
           </h2>
-
-          <!-- Description -->
+          
+    <!-- Description -->
           <%= if @current.description && @current.description != "" do %>
             <p class={[
               "text-center text-sm font-mono font-light leading-relaxed mt-10 max-w-lg mx-auto",
               description_classes(@state)
             ]}>
-              <%= @current.description %>
+              {@current.description}
             </p>
           <% end %>
-
-          <!-- Action hints -->
+          
+    <!-- Action hints -->
           <div class={[
             "flex items-center justify-center gap-20 mt-16 transition-opacity duration-500",
             if(@state in [:emerging, :present], do: "opacity-30", else: "opacity-0")
@@ -780,7 +991,7 @@ defmodule GridroomWeb.TerminalLive do
             <div class="text-center space-y-8 animate-fade-in">
               <%= if @folder do %>
                 <p class="text-[#4a4540] text-xs font-mono tracking-[0.3em] uppercase">
-                  <%= @folder.name %> folder empty
+                  {@folder.name} folder empty
                 </p>
               <% else %>
                 <p class="text-[#4a4540] text-xs font-mono tracking-[0.3em] uppercase">
@@ -814,25 +1025,25 @@ defmodule GridroomWeb.TerminalLive do
       <%= if @bucket do %>
         <div class="text-center">
           <div class="text-[#5a4f42] text-xs font-mono mb-6">
-            bucket <%= @index + 1 %>
+            bucket {@index + 1}
           </div>
 
           <h2 class="text-2xl md:text-3xl font-light tracking-wide text-[#e8e0d5] mb-4">
-            <%= @bucket.title %>
+            {@bucket.title}
           </h2>
 
           <%= if @bucket.description && @bucket.description != "" do %>
             <p class="text-[#8a7d6d] text-sm md:text-base font-light max-w-md mx-auto mb-8">
-              "<%= @bucket.description %>"
+              "{@bucket.description}"
             </p>
           <% end %>
 
           <div class="flex items-center justify-center gap-2 mb-8">
             <div class={["w-1.5 h-1.5 rounded-full", activity_dot(@bucket.activity.level)]}></div>
             <span class="text-[#3a3530] text-[10px] font-mono uppercase tracking-wider">
-              <%= @bucket.activity.level %>
+              {@bucket.activity.level}
               <%= if @bucket.activity.count > 0 do %>
-                · <%= @bucket.activity.count %> messages
+                · {@bucket.activity.count} messages
               <% end %>
             </span>
           </div>
@@ -889,10 +1100,22 @@ defmodule GridroomWeb.TerminalLive do
             <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">1-6</span>
             <span class="text-[#8a7d6d] text-sm">enter saved discussion</span>
           </div>
+          <%= if @logged_in do %>
+            <div class="flex items-center gap-4">
+              <span class="w-20 text-right text-[#c9a962] text-xs font-mono">7-8</span>
+              <span class="text-[#8a7d6d] text-sm">enter your discussion</span>
+            </div>
+          <% end %>
           <div class="flex items-center gap-4">
             <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">c</span>
             <span class="text-[#8a7d6d] text-sm">clear all saved</span>
           </div>
+          <%= if @logged_in do %>
+            <div class="flex items-center gap-4">
+              <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">n</span>
+              <span class="text-[#8a7d6d] text-sm">create discussion</span>
+            </div>
+          <% end %>
           <div class="flex items-center gap-4">
             <span class="w-20 text-right text-[#5a4f42] text-xs font-mono">esc</span>
             <span class="text-[#8a7d6d] text-sm">return to discovery</span>
@@ -901,6 +1124,76 @@ defmodule GridroomWeb.TerminalLive do
 
         <p class="text-[#3a3530] text-[10px] font-mono mt-8">
           press any key to close
+        </p>
+      </div>
+    </div>
+    """
+  end
+
+  # Create discussion modal
+  defp create_discussion_modal(assigns) do
+    ~H"""
+    <div
+      class="fixed inset-0 bg-[#080706]/95 flex items-center justify-center z-50 animate-fade-in"
+      phx-click="close_create_modal"
+    >
+      <div
+        class="bg-[#0d0c0a] border border-[#2a2522] rounded-lg p-8 max-w-md w-full mx-4"
+        phx-click-away="close_create_modal"
+        onclick="event.stopPropagation()"
+      >
+        <h3 class="text-[#e8e0d4] text-lg font-mono uppercase tracking-wider mb-6 text-center">
+          Create Discussion
+        </h3>
+
+        <form phx-submit="create_discussion" class="space-y-6">
+          <div>
+            <label class="block text-[#5a4f42] text-xs font-mono uppercase tracking-wider mb-2">
+              Title
+            </label>
+            <input
+              type="text"
+              name="title"
+              id="create-discussion-title"
+              class="w-full bg-[#0a0908] border border-[#2a2522] rounded px-4 py-3 text-[#e8e0d4] text-sm font-mono placeholder-[#3a3530] focus:border-[#8b9a7d] focus:outline-none"
+              placeholder="What do you want to discuss?"
+              required
+              autofocus
+              phx-hook="CreateDiscussionInput"
+            />
+          </div>
+
+          <div>
+            <label class="block text-[#5a4f42] text-xs font-mono uppercase tracking-wider mb-2">
+              Description <span class="text-[#3a3530]">(optional)</span>
+            </label>
+            <textarea
+              name="description"
+              rows="3"
+              class="w-full bg-[#0a0908] border border-[#2a2522] rounded px-4 py-3 text-[#e8e0d4] text-sm font-mono placeholder-[#3a3530] focus:border-[#8b9a7d] focus:outline-none resize-none"
+              placeholder="Add some context..."
+            ></textarea>
+          </div>
+
+          <div class="flex items-center justify-end gap-4 pt-2">
+            <button
+              type="button"
+              phx-click="close_create_modal"
+              class="px-4 py-2 text-[#5a4f42] text-sm font-mono uppercase tracking-wider hover:text-[#8a7d6d] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="px-6 py-2 bg-[#8b9a7d] text-[#0d0c0a] text-sm font-mono uppercase tracking-wider hover:bg-[#9baa8d] transition-colors rounded"
+            >
+              Create
+            </button>
+          </div>
+        </form>
+
+        <p class="text-[#3a3530] text-[10px] font-mono mt-6 text-center">
+          <span class="text-[#5a4f42]">esc</span> to cancel
         </p>
       </div>
     </div>

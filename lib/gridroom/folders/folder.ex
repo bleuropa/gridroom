@@ -17,6 +17,8 @@ defmodule Gridroom.Folders.Folder do
     field :icon, :string
     field :sort_order, :integer, default: 0
     field :active, :boolean, default: true
+    field :is_community, :boolean, default: false
+    field :last_refreshed_at, :utc_datetime
 
     has_many :nodes, Gridroom.Grid.Node
 
@@ -25,8 +27,8 @@ defmodule Gridroom.Folders.Folder do
 
   def changeset(folder, attrs) do
     folder
-    |> cast(attrs, [:slug, :name, :description, :system_prompt, :completion_message, :icon, :sort_order, :active])
-    |> validate_required([:slug, :name, :system_prompt, :completion_message])
+    |> cast(attrs, [:slug, :name, :description, :system_prompt, :completion_message, :icon, :sort_order, :active, :is_community, :last_refreshed_at])
+    |> validate_required([:slug, :name, :completion_message])
     |> unique_constraint(:slug)
   end
 end

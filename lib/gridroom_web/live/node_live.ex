@@ -79,8 +79,11 @@ defmodule GridroomWeb.NodeLive do
       |> Enum.map(& &1.id)
       |> MapSet.new()
 
-    # Load user's buckets for persistent display
+    # Load user's buckets for persistent display (slots 1-6)
     buckets = load_user_buckets(user)
+
+    # Load user's created nodes (slots 7-8)
+    created_nodes = load_user_created_nodes(user)
 
     # Load user's pods for pod view toggle
     user_pods = Pods.list_user_pods(user.id)
@@ -99,6 +102,7 @@ defmodule GridroomWeb.NodeLive do
      |> assign(:cooldown_users, cooldown_users)
      |> assign(:feedback_given, feedback_given)
      |> assign(:buckets, buckets)
+     |> assign(:created_nodes, created_nodes)
      |> assign(:user_pods, user_pods)
      |> assign(:current_pod_id, nil)
      |> assign(:show_create_pod_modal, false)
@@ -121,6 +125,14 @@ defmodule GridroomWeb.NodeLive do
   # Load buckets from user's saved IDs, filtering out gone nodes
   defp load_user_buckets(user) do
     user.bucket_ids
+    |> Enum.map(&Grid.get_node_with_activity/1)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reject(fn node -> node.decay == :gone end)
+  end
+
+  # Load user-created nodes from user's created_node_ids, filtering out gone nodes
+  defp load_user_created_nodes(user) do
+    user.created_node_ids
     |> Enum.map(&Grid.get_node_with_activity/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.reject(fn node -> node.decay == :gone end)
@@ -692,8 +704,8 @@ defmodule GridroomWeb.NodeLive do
                 <%= typing_text(typing_users) %>
               </span>
             <% end %>
-            <!-- Bucket indicators -->
-            <%= if length(@buckets) > 0 do %>
+            <!-- Bucket indicators (slots 1-6) and created nodes (slots 7-8) -->
+            <%= if length(@buckets) > 0 or length(@created_nodes) > 0 do %>
               <div class="flex items-center gap-2 ml-auto">
                 <span class="text-[9px] font-mono text-[#3a3530] uppercase tracking-widest">buckets</span>
                 <%= for {bucket, index} <- Enum.with_index(@buckets) do %>
@@ -707,6 +719,22 @@ defmodule GridroomWeb.NodeLive do
                   >
                     <%= index + 1 %>
                   </a>
+                <% end %>
+                <!-- Separator and created nodes (slots 7-8) -->
+                <%= if length(@created_nodes) > 0 do %>
+                  <div class="w-px h-4 bg-[#2a2522] mx-1"></div>
+                  <%= for {created, index} <- Enum.with_index(@created_nodes) do %>
+                    <a
+                      href={~p"/node/#{created.id}"}
+                      class={[
+                        "w-6 h-6 rounded-full border flex items-center justify-center text-[9px] font-mono transition-all duration-200",
+                        created_node_color_classes(index, created.id == @node.id)
+                      ]}
+                      title={created.title}
+                    >
+                      <%= index + 7 %>
+                    </a>
+                  <% end %>
                 <% end %>
               </div>
             <% end %>
@@ -1453,6 +1481,15 @@ defmodule GridroomWeb.NodeLive do
   defp bucket_ring_color(index) do
     color = Enum.at(@bucket_colors, index, List.first(@bucket_colors))
     color.ring
+  end
+
+  # Created node color classes (slots 7-8, amber/gold theme)
+  defp created_node_color_classes(_index, true = _is_current) do
+    "border-[#c9a962] bg-[#c9a962]/20 text-[#c9a962]"
+  end
+
+  defp created_node_color_classes(_index, false = _is_current) do
+    "border-[#c9a962]/60 text-[#c9a962]/80 hover:border-[#c9a962] hover:text-[#c9a962]"
   end
 
   # Find which bucket indices a user shares with the current user (excluding current node)

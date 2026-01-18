@@ -222,6 +222,24 @@ folders = [
 
     The universe thanks you for your curiosity, refiner. As does Kier.
     """
+  },
+  %{
+    slug: "peer-contributions",
+    name: "Peer Contributions",
+    description: "Discussions created by your fellow refiners",
+    icon: "users",
+    sort_order: 6,
+    is_community: true,
+    system_prompt: nil,
+    completion_message: """
+    You have witnessed the collective wisdom of your fellow refiners.
+
+    Each contribution, a gift freely given. Each discussion, a bridge between minds.
+
+    Kier believed that true refinement emerges not from above, but from the bonds we forge with one another.
+
+    Your participation in this exchange honors the spirit of voluntary cooperation, refiner.
+    """
   }
 ]
 

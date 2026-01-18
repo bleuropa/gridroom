@@ -142,6 +142,54 @@ defmodule Gridroom.Accounts do
     update_buckets(user, [])
   end
 
+  ## Created Nodes Management (User-created discussions, slots 7-8)
+
+  @doc """
+  Updates the user's created node IDs (max 2).
+  """
+  def update_created_nodes(%User{} = user, created_node_ids) when is_list(created_node_ids) do
+    # Ensure max 2 created nodes
+    created_node_ids = Enum.take(created_node_ids, 2)
+
+    user
+    |> User.created_nodes_changeset(%{created_node_ids: created_node_ids})
+    |> Repo.update()
+  end
+
+  @doc """
+  Adds a node ID to user's created nodes if not full and not already present.
+  Returns {:ok, user}, {:error, :created_nodes_full}, or {:error, :already_created}.
+  """
+  def add_to_created_nodes(%User{created_node_ids: created_node_ids} = user, node_id) do
+    cond do
+      node_id in created_node_ids ->
+        {:error, :already_created}
+
+      length(created_node_ids) >= 2 ->
+        {:error, :created_nodes_full}
+
+      true ->
+        update_created_nodes(user, created_node_ids ++ [node_id])
+    end
+  end
+
+  @doc """
+  Removes a node ID from user's created nodes by index.
+  """
+  def remove_from_created_nodes(%User{created_node_ids: created_node_ids} = user, index)
+      when is_integer(index) do
+    new_ids = List.delete_at(created_node_ids, index)
+    update_created_nodes(user, new_ids)
+  end
+
+  @doc """
+  Removes a node ID from user's created nodes by node ID.
+  """
+  def remove_from_created_nodes_by_id(%User{created_node_ids: created_node_ids} = user, node_id) do
+    new_ids = Enum.reject(created_node_ids, &(&1 == node_id))
+    update_created_nodes(user, new_ids)
+  end
+
   ## Dismissal Management
 
   @doc """

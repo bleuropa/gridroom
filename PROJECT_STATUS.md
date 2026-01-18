@@ -1,15 +1,13 @@
 # Project Status
 
-**Last Updated**: 2026-01-17
+**Last Updated**: 2026-01-18
 **Project**: Gridroom (Innie Chat)
 
 ---
 
 ## Current Focus
 
-**Active Task**: [[T-2025-026-user-discussion-creation]]
-**Branch**: feat/T-2025-026-user-discussion-creation
-**Goal**: User discussion creation & canvas cleanup
+**No active task** - Ready for next task
 
 ---
 
@@ -40,9 +38,9 @@
 
 ## Recently Completed (Last 3)
 
+- [[T-2025-026-user-discussion-creation]] - User discussion creation with slots 7-8 & Peer Contributions folder
 - [[T-2025-025-discussion-pods]] - Private pods for group messaging within discussions
 - [[T-2025-024-streaming-messages-pagination]] - Streaming messages with LiveView streams for lazy loading
-- [[T-2025-023-gemini-google-search-grounding]] - Gemini Google Search grounding + decay/scheduler cleanup
 
 ---
 

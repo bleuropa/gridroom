@@ -18,6 +18,7 @@ defmodule Gridroom.Accounts.User do
     field :glyph_color, :string, default: "#D4A574"
     field :resonance, :integer, default: 50
     field :bucket_ids, {:array, :binary_id}, default: []
+    field :created_node_ids, {:array, :binary_id}, default: []
 
     has_many :messages, Gridroom.Grid.Message
 
@@ -129,5 +130,13 @@ defmodule Gridroom.Accounts.User do
   def bucket_changeset(user, attrs) do
     user
     |> cast(attrs, [:bucket_ids])
+  end
+
+  @doc """
+  Changeset for updating created node IDs.
+  """
+  def created_nodes_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:created_node_ids])
   end
 end

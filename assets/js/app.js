@@ -542,6 +542,21 @@ Hooks.NodeKeys = {
   }
 }
 
+// Create Discussion Input Hook - prevents keydown propagation to parent handlers
+Hooks.CreateDiscussionInput = {
+  mounted() {
+    this.el.addEventListener('keydown', (e) => {
+      // Stop propagation for all keys except Escape (which should close modal)
+      if (e.key !== 'Escape') {
+        e.stopPropagation()
+      }
+    })
+
+    // Auto-focus the input
+    setTimeout(() => this.el.focus(), 100)
+  }
+}
+
 // Terminal Keys Hook - handles keyboard shortcuts for terminal interface
 Hooks.TerminalKeys = {
   mounted() {
